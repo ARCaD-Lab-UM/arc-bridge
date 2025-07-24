@@ -235,9 +235,9 @@ if __name__ == '__main__':
         robot.publishRobotCmd(cmd_msg)  # Publish the robot command
         rate.sleep()
 
-    imu_acc_filter = MovingWindowFilter(window_size=20, dim=3)
-    imu_gyro_filter = MovingWindowFilter(window_size=20, dim=3)
-    joint_vel_filter = MovingWindowFilter(window_size=5, dim=8)
+    imu_acc_filter = MovingWindowFilter(window_size=10, dim=3)
+    imu_gyro_filter = MovingWindowFilter(window_size=10, dim=3)
+    joint_vel_filter = MovingWindowFilter(window_size=10, dim=8)
 
 
     print("=> Start to publish robot state...")
