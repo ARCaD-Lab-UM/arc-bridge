@@ -8,39 +8,33 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 
 ## Quick Start
 1. Make sure you have java installed. Type `javac` to verify.
-2. Clone this repo using **SSH** and initialize LCM as a submodule.
+2. Clone this repo using **SSH**.
     ```sh
-    git clone git@github.com:ARCaD-Lab-UM/agile-robot-control-bridge.git
-    git submodule update --init
+    git clone git@github.com:ARCaD-Lab-UM/arc-bridge.git
     ```
-3. Build and **install** LCM from source (under `<lcm_types/lcm>` folder) by following the [official instructions](https://lcm-proj.github.io/lcm/content/build-instructions.html)
-4. Copy the compiled `lcm.jar` for later use.
-    ```sh
-    cp lcm_types/lcm/build/lcm-java/lcm.jar lcm_types/lcm.jar
-    ```
-    Check [this doc](https://lcm-proj.github.io/lcm/content/java-notes.ml#finding-lcm-jar) to find `lcm.jar` if you install LCM from other sources.
+3. Build and **install** LCM from source by following the [official instructions](https://lcm-proj.github.io/lcm/content/build-instructions.html).
+4. Check [this doc](https://lcm-proj.github.io/lcm/content/java-notes.ml#finding-lcm-jar) to find the compiled `lcm.jar` and copy it to `<lcm_types>` folder.
 5. Generate LCM types.
     ```sh
-    cd lcm_types
     ./gen_lcm_types.sh
     ```
-    :warning: Redo this step every time if any LCM types are changed (may from new commits).
-6. Create the conda environment with dependencies.
+    :warning: Redo this step if any LCM types are changed (may from new commits).
+6. Create the conda environment and install `arc-bridge`.
     ```sh
     conda env create -f environment.yml
-    ```
-7. Launch the entry script and follow the prompt to select robot type.
-    ```sh
     conda activate arcpy
-    python robot_mujoco.py
+    pip install -e . --no-deps
+    ```
+7. Launch it in command line and follow the prompt to select a robot type.
+    ```sh
+    arc-bridge
     ```
     Use `--help` to find other launching options.
    
     :warning: Use `mjpython` instead of `python` for macOS user.
 8. Spy the communication rate and plot data.
     ```sh
-    cd lcm_types
-    ./run_lcm_spy.sh
+    arc-lcm-spy
     ```
 
 ## Supported Robot & Controller
