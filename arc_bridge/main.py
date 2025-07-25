@@ -8,11 +8,11 @@ import argparse
 
 import numpy as np
 
-from config import Config
-from bridges import *
+from arc_bridge.config import Config
+from arc_bridge.bridges import *
 
 def SimulationThread():
-    global mj_data, mj_model
+    global mj_data, mj_model, viewer, bridge, locker, args
     while viewer.is_running():
         step_start = time.perf_counter()
         if args.block and not bridge.low_cmd_received:
@@ -73,7 +73,8 @@ def ViewerThread():
     print("Viewer thread exited")
 
 
-if __name__ == "__main__":
+def main():
+    global mj_data, mj_model, viewer, bridge, locker, args
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--block", action="store_true", help="block the simulation thread if no control is received")
@@ -151,3 +152,6 @@ if __name__ == "__main__":
     viewer_thread.join()
     sim_thread.join()
     bridge.stop_lcm_thread()
+
+if __name__ == "__main__":
+    main()

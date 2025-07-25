@@ -2,10 +2,10 @@ import mujoco
 import numpy as np
 import pinocchio as pin
 
-from state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter
+from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
-from lcm_types.robot_lcm import tron1_pointfoot_state_t, tron1_pointfoot_control_t
-from utils import *
+from arc_bridge.lcm_msgs import tron1_pointfoot_state_t, tron1_pointfoot_control_t
+from arc_bridge.utils import *
 
 class Tron1PointfootBridge(Lcm2MujocoBridge):
     def __init__(self, mj_model, mj_data, config):

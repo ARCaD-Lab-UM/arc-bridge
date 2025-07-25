@@ -6,9 +6,8 @@ import numpy as np
 
 from threading import Thread
 
-from utils import Gamepad
-from lcm_types.robot_lcm import *
-from utils import *
+from arc_bridge.utils import *
+from arc_bridge.lcm_msgs import *
 
 MOTOR_SENSOR_NUM = 3 # pos, vel, torque
 

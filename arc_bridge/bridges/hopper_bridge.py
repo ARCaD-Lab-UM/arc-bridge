@@ -2,9 +2,9 @@ import numpy as np
 import time
 
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
-from state_estimators import HopperStateEstimator
-from lcm_types.robot_lcm import hopper_state_t, hopper_control_t
-from utils import *
+from arc_bridge.state_estimators import HopperStateEstimator
+from arc_bridge.lcm_msgs import hopper_state_t, hopper_control_t
+from arc_bridge.utils import *
 
 class HopperBridge(Lcm2MujocoBridge):
     def __init__(self, mj_model, mj_data, config):

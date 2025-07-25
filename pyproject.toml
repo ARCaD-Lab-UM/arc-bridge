@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "arc-bridge"
+version = "0.1.0"
+requires-python = ">=3.8"
+readme = "README.md"
+authors = [
+    {name = "Yulun Zhuang", email = "yulunz@umich.edu"},
+]
+description = "Software bridge of a nominal robot controller to Mujoco simulator via LCM communication"
+dependencies = [
+    "numpy",
+    "scipy",
+    "lcm",
+    "mujoco",
+    "inputs",
+]
+
+
+[project.optional-dependencies]
+kindyn = [
+    "pinocchio"
+]
+
+
+[project.urls]
+Repository = "https://github.com/ARCaD-Lab-UM/arc-bridge.git"
+
+
+[project.scripts]
+arc-bridge = "arc_bridge.main:main"
+arc-lcm-spy = "arc_bridge.run_lcm_spy:main"
+
+
+[tool.setuptools]
+packages = [
+    "arc_bridge", 
+    "arc_bridge.bridges", 
+    "arc_bridge.lcm_msgs",
+    "arc_bridge.state_estimators", 
+    "arc_bridge.utils",
+]

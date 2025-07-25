@@ -163,7 +163,7 @@ cython_debug/
 
 # Custom
 *.jar
-robot_lcm/
+lcm_msgs/
 lcmlog*
 *.ipynb
 *.mp4
