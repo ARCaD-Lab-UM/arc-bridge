@@ -23,7 +23,7 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
     ```sh
     conda env create -f environment.yml
     conda activate arcpy
-    pip install -e . --no-deps
+    pip install -e . --no-deps --config-settings editable_mode=compat
     ```
 7. Launch it in command line and follow the prompt to select a robot type.
     ```sh
