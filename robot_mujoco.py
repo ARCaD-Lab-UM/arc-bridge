@@ -76,20 +76,15 @@ def ViewerThread():
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument("--robot_type", type=str, help="Select robot type from config", choices=Config.valid_robot_types)
     parser.add_argument("--block", action="store_true", help="block the simulation thread if no control is received")
     parser.add_argument("--track", action="store_true", help="make camera track the robot's motion")
     parser.add_argument("--replay", action="store_true", help="replay state trajectory from LCM")
     parser.add_argument("--debug", action="store_true", help="debug mode")
     args = parser.parse_args()
 
-    # Select robot type
-    for i, r_type in enumerate(Config.valid_robot_types):
-        print(f"{i}: {r_type}")
-
-    robot_type_idx = int(input("Please select the robot type: "))
-    robot_type = Config.valid_robot_types[robot_type_idx]
-
-    robot_config = Config(robot_type)
+    # Initialize configuration with selected robot type
+    robot_config = Config(args.robot_type)
 
     # Initialize Mujoco
     mj_model = mujoco.MjModel.from_xml_path(robot_config.robot_xml_path)
@@ -116,7 +111,7 @@ if __name__ == "__main__":
 
     # Initialize bridge
     try:
-        bridge_name = "".join([s.capitalize() for s in robot_type.split("_")]) + "Bridge"
+        bridge_name = "".join([s.capitalize() for s in args.robot_type.split("_")]) + "Bridge"
         bridge = eval(bridge_name)(mj_model, mj_data, robot_config)
     except NameError as e:
         bridge = Lcm2MujocoBridge(mj_model, mj_data, robot_config)
