@@ -1,0 +1,13 @@
+package robot_lcm;
+
+struct simple_pendulum_state_t
+{
+    int64_t timestamp;
+
+    double qj_pos[1];
+    double qj_vel[1];
+    double qj_tau[1];
+
+    double inertia_mat[1][1];
+    double bias_force[1];
+}

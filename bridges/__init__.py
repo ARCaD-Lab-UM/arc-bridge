@@ -6,3 +6,4 @@ from .tron1_pointfoot_bridge import Tron1PointfootBridge
 from .arm2link_bridge import Arm2linkBridge
 from .tron1_wheeled_bridge import Tron1WheeledBridge
 from .tron1_linefoot_bridge import Tron1LinefootBridge
+from .pendulum_bridge import SimplePendulumBridge

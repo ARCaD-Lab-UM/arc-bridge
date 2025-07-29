@@ -1,0 +1,15 @@
+package robot_lcm;
+
+struct simple_pendulum_control_t
+{
+    int64_t timestamp;
+
+    double qj_tau[1];
+
+    double qj_pos[1];
+    double qj_vel[1];
+
+    double kp[1];
+    double kd[1];
+
+}

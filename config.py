@@ -10,6 +10,7 @@ class Config:
         "tron1_linefoot":   "./robot_assets/Tron1Linefoot/xml/robot.xml",
         "biped_pointfoot":  "./robot_assets/BipedPointfoot/biped_pointfoot_scene.xml",
         "biped_linefoot":   "./robot_assets/BipedLinefoot/biped_linefoot_scene.xml",
+        "simple_pendulum":  "./robot_assets/Pendulum/pendulum_scene.xml",
         # "arm2link":         "./robot_assets/Arm2Link/arm2link_sensing.xml",
     }
     valid_robot_types = list(robot_path_dict.keys())
