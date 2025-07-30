@@ -164,6 +164,7 @@ cython_debug/
 # Custom
 *.jar
 lcm_msgs/
+robot_lcm/
 lcmlog*
 *.ipynb
 *.mp4
