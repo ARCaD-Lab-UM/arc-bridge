@@ -4,9 +4,11 @@ channels:
   - conda-forge
 dependencies:
   - python = 3.9
-  - numpy = 1.21.6
-  - scipy = 1.11.1
-  - pinocchio = 3.4.0
+  - numpy < 2
+  - scipy
+  - pinocchio
+  - casadi >= 3.7.0
+  - pip
   - pip:
     - inputs == 0.5
     - mujoco == 3.2.3
