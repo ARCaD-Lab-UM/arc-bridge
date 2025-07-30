@@ -16,7 +16,7 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 4. Check [this doc](https://lcm-proj.github.io/lcm/content/java-notes.ml#finding-lcm-jar) to find the compiled `lcm.jar` and copy it to `<lcm_types>` folder.
 5. Generate LCM types.
     ```sh
-    ./gen_lcm_types.sh
+    gen_lcm_types.sh
     ```
     :warning: Redo this step if any LCM types are changed (may from new commits).
 6. Create the conda environment and install `arc-bridge`.
@@ -30,8 +30,6 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
     arc-bridge
     ```
     Use `--help` to find other launching options.
-   
-    :warning: Use `mjpython` instead of `python` for macOS user.
 8. Spy the communication rate and plot data.
     ```sh
     arc-lcm-spy
@@ -45,12 +43,33 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 - [x] [Linefoot Biped](https://github.com/ARCaD-Lab-UM/TrainingWheel/blob/main/ex_Cassie/MAIN_cassie_LCM.m)
 - [x] [Pointfoot Biped](https://github.com/ARCaD-Lab-UM/TrainingWheel/blob/main/ex_tron1/MAIN_tron1_LCM.m)
 <!-- - [x] 2 Link Arm -->
-:warning: Downgrade `mujoco` to 3.2.2 manually to be compatible with LimX SDK
 
-## Supported OS
-- Linux, macOS
 
 ## Troubleshooting
+
+<details>
+    <summary>  
+        <b> For macOS or Windows users </b>
+    </summary>
+
+macOS: Use `mjpython` instead of `python` to launch the bridge.
+<br>
+Windows: 
+1. Change the `__init__.py` of installed LCM package in `site-packages` based on this [PR](https://github.com/lcm-proj/lcm/pull/581)
+2. Install `glib` in conda.
+3. Run `gen_lcm_types_win.cmd` to generate LCM types.
+4. Install `arc-bridge` as in step 6.
+</details>
+
+<details>
+    <summary>  
+        <b> LCM messages not found in MATLAB </b>
+    </summary>
+
+Restart MATLAB once after generating LCM types.
+</details>
+
+
 <details>
     <summary>  
         <b> Permission denied when initializing LCM as a submodule </b>
@@ -88,4 +107,12 @@ When compiling LCM, disable unit tests.
 ```sh
 cmake .. -DLCM_ENABLE_EXAMPLES=OFF -DLCM_ENABLE_TESTS=OFF
 ```
+</details>
+
+<details>
+    <summary>
+        <b> Unable to install LimX SDK in arcpy </b>
+    </summary>
+
+Downgrade `mujoco` to 3.2.2 and `numpy` to 1.21.6 manually.
 </details>
