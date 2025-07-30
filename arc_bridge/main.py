@@ -30,9 +30,10 @@ def SimulationThread():
                 # Publish to topic_state.upper() for real robot
                 bridge.publish_low_state(bridge.topic_state.upper(), skip_common_state=True)
 
-        time_until_next_step = mj_model.opt.timestep - (time.perf_counter() - step_start)
-        if time_until_next_step > 0:
-            time.sleep(time_until_next_step)
+        #* time.sleep() can be inaccurate depending on OS timer
+        # Instead, use busy-waiting (spinlock) for short delay to ensure precision
+        while (time.perf_counter() - step_start) < mj_model.opt.timestep:
+            pass
 
     print("Simulation thread exited")
 
