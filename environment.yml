@@ -11,5 +11,5 @@ dependencies:
   - pip
   - pip:
     - inputs == 0.5
-    - mujoco == 3.2.3
+    - mujoco == 3.3.4
     - lcm == 1.5.1
