@@ -17,9 +17,8 @@ def SimulationThread():
         if args.block and not bridge.low_cmd_received:
             bridge.publish_low_state(bridge.topic_state)
         else:
-            locker.acquire()
-            mujoco.mj_step(mj_model, mj_data)
-            locker.release()
+            with viewer.lock():
+                mujoco.mj_step(mj_model, mj_data)
             bridge.publish_gamepad_cmd()
             if not args.replay:
                 bridge.publish_low_state(bridge.topic_state)
@@ -43,9 +42,8 @@ def SimulationThread():
 
 def ViewerThread():
     while viewer.is_running():
-        locker.acquire()
+        # Add geom of estimated position and velocity
         if bridge.vis_se:
-            # Add geom of estimated position and velocity
             viewer.user_scn.ngeom = 0
             mujoco.mjv_initGeom(
                 viewer.user_scn.geoms[0],
@@ -70,15 +68,19 @@ def ViewerThread():
                 bridge.vis_pos_est, 
                 bridge.vis_pos_est + bridge.vis_vel_est*2)
             viewer.user_scn.ngeom = 2
-        viewer.sync()
-        locker.release()
+
+        with viewer.lock():
+            # Turn state_only on to make sync() really fast.
+            # No mj_model modification on the fly is allowed instead.
+            viewer.sync(state_only=True) # state_only is introduced in mujoco 3.3.4
+
         time.sleep(Config.dt_viewer)
 
     print("Viewer thread exited")
 
 
 def main():
-    global mj_data, mj_model, viewer, bridge, locker, args
+    global mj_data, mj_model, viewer, bridge, args
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--block", action="store_true", help="block the simulation thread if no control is received")
@@ -135,9 +137,6 @@ def main():
         bridge.register_low_cmd_subscriber(bridge.topic_cmd.upper())
     else:
         bridge.register_low_cmd_subscriber(bridge.topic_cmd)
-
-    # Separate simulation and visualization threads
-    locker = threading.Lock()
 
     # Reset data keyframe
     mujoco.mj_resetDataKeyframe(mj_model, mj_data, 0)
