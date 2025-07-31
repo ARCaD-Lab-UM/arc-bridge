@@ -12,9 +12,8 @@ from arc_bridge.config import Config
 from arc_bridge.bridges import *
 
 def SimulationThread():
-    global mj_data, mj_model, viewer, bridge, locker, args
+    next_time = time.perf_counter()
     while viewer.is_running():
-        step_start = time.perf_counter()
         if args.block and not bridge.low_cmd_received:
             bridge.publish_low_state(bridge.topic_state)
         else:
@@ -30,10 +29,14 @@ def SimulationThread():
                 # Publish to topic_state.upper() for real robot
                 bridge.publish_low_state(bridge.topic_state.upper(), skip_common_state=True)
 
-        #* time.sleep() can be inaccurate depending on OS timer
-        # Instead, use busy-waiting (spinlock) for short delay to ensure precision
-        while (time.perf_counter() - step_start) < mj_model.opt.timestep:
-            pass
+        # Wait to sync wall clock with simulation time
+        next_time += mj_model.opt.timestep
+        remaining = next_time - time.perf_counter()
+        if remaining > 0:
+            time.sleep(remaining)
+        else:
+            # Over-ran, skip sleep to catch up
+            next_time = time.perf_counter()
 
     print("Simulation thread exited")
 
