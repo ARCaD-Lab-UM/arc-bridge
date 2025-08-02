@@ -5,6 +5,7 @@ import time
 MAX_ABS_VAL = 32768
 DEAD_ZONE = 1000
 
+
 def _interpolate(raw_reading, min_raw_reading, max_raw_reading, new_scale):
     if abs(raw_reading) < min_raw_reading:
         return 0.0

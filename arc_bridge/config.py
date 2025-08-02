@@ -1,5 +1,6 @@
 from pathlib import Path
 
+
 class Config:
     dt_sim = 0.001     # Dynamics update rate
     dt_viewer = 0.02   # Viewer update rate

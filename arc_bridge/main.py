@@ -3,7 +3,6 @@ import mujoco.viewer
 
 import time
 from threading import Thread
-import threading
 import argparse
 
 import numpy as np
@@ -155,6 +154,7 @@ def main():
     viewer_thread.join()
     sim_thread.join()
     bridge.stop_lcm_thread()
+
 
 if __name__ == "__main__":
     main()

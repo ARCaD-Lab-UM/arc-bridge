@@ -3,6 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 def main():
     # Get the package installation directory
     package_dir = Path(__file__).parent
@@ -22,6 +23,7 @@ def main():
     except FileNotFoundError:
         print("Error: lcm-spy not found. Please install LCM tools.")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

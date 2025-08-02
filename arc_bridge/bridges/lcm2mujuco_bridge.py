@@ -9,7 +9,8 @@ from abc import abstractmethod
 from arc_bridge.utils import *
 from arc_bridge.lcm_msgs import *
 
-MOTOR_SENSOR_NUM = 3 # pos, vel, torque
+MOTOR_SENSOR_NUM = 3  # pos, vel, torque
+
 
 class Lcm2MujocoBridge:
 
@@ -51,8 +52,8 @@ class Lcm2MujocoBridge:
 
         # LCM messages
         self.lc = lcm.LCM()
-        self.low_state = eval(self.topic_state+"_t")()
-        self.low_cmd = eval(self.topic_cmd+"_t")()
+        self.low_state = eval(self.topic_state + "_t")()
+        self.low_cmd = eval(self.topic_cmd + "_t")()
         self.lcm_handle_thread = None
 
         self.low_cmd_received = False
@@ -63,7 +64,7 @@ class Lcm2MujocoBridge:
         self.gamepad_cmd = gamepad_cmd_t()
         self.topic_gamepad = "gamepad_cmd"
         try:
-            self.gamepad = Gamepad(0.5, 0.5, np.pi/2)
+            self.gamepad = Gamepad(0.5, 0.5, np.pi / 2)
             print("=> Gamepad found")
         except:
             print("=> No gamepad found")
@@ -75,9 +76,11 @@ class Lcm2MujocoBridge:
         self.vis_se = False
 
     def lcm_cmd_handler(self, channel, data):
-        if self.mj_data != None:
-            self.low_cmd = eval(self.topic_cmd+"_t").decode(data)
-            self.low_cmd_received = True
+        if self.mj_data is None:
+            return
+
+        self.low_cmd = eval(self.topic_cmd + "_t").decode(data)
+        self.low_cmd_received = True
 
     @abstractmethod
     def lcm_state_handler(self, channel, data):
@@ -110,9 +113,9 @@ class Lcm2MujocoBridge:
         print("LCM thread exited")
 
     def parse_common_low_state(self):
-        if self.mj_data == None:
+        if self.mj_data is None:
             return -1
-        
+
         # Assume each joint has a position, velocity, and torque sensor
         for i in range(self.num_motor):
             self.low_state.qj_pos[i] = self.mj_data.sensordata[i] + self.joint_offsets[i] \
@@ -181,7 +184,7 @@ class Lcm2MujocoBridge:
         self.lc.publish(topic, self.low_state.encode())
 
     def publish_gamepad_cmd(self):
-        if self.gamepad == None:
+        if self.gamepad is None:
             return
 
         cmd = self.gamepad.get_command()
