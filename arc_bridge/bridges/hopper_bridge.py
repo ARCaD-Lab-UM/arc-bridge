@@ -77,7 +77,7 @@ class HopperBridge(Lcm2MujocoBridge):
         if self.low_cmd.reset_se:
             self.state_estimator.reset(np.array([0, 0, height_measured, *vel_measured]))
 
-    def lowStateHandler(self, channel, data):
+    def lcm_state_handler(self, channel, data):
         if self.mj_data == None:
             return
 

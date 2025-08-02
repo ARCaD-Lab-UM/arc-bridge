@@ -1,10 +1,10 @@
-from abc import abstractmethod
-import time
 import lcm
+import time
 import mujoco
 import numpy as np
 
 from threading import Thread
+from abc import abstractmethod
 
 from arc_bridge.utils import *
 from arc_bridge.lcm_msgs import *
@@ -67,7 +67,6 @@ class Lcm2MujocoBridge:
             print("=> Gamepad found")
         except:
             print("=> No gamepad found")
-            pass
 
         # Joint zero pos offsets
         self.joint_offsets = np.zeros(self.num_motor)
@@ -75,9 +74,34 @@ class Lcm2MujocoBridge:
         # State estimator visualization
         self.vis_se = False
 
+    def lcm_cmd_handler(self, channel, data):
+        if self.mj_data != None:
+            self.low_cmd = eval(self.topic_cmd+"_t").decode(data)
+            self.low_cmd_received = True
+
+    @abstractmethod
+    def lcm_state_handler(self, channel, data):
+        raise NotImplementedError("Subclass must implement this for replay mode")
+
+    def register_low_cmd_subscriber(self, topic=None):
+        if topic is None:
+            topic = self.topic_cmd
+        self.low_cmd_suber = self.lc.subscribe(topic, self.lcm_cmd_handler)
+        self.low_cmd_suber.set_queue_capacity(1)
+
+    def register_low_state_subscriber(self, topic=None):
+        if topic is None:
+            topic = self.topic_state
+        self.low_state_suber = self.lc.subscribe(topic, self.lcm_state_handler)
+        self.low_state_suber.set_queue_capacity(1)
+
+    def lcm_handle_loop(self):
+        while self.is_running:
+            self.lc.handle_timeout(0)
+
     def start_lcm_thread(self):
         self.is_running = True
-        self.lcm_handle_thread = Thread(target=self.lcmHandleThread, daemon=True)
+        self.lcm_handle_thread = Thread(target=self.lcm_handle_loop, daemon=True)
         self.lcm_handle_thread.start()
 
     def stop_lcm_thread(self):
@@ -85,43 +109,11 @@ class Lcm2MujocoBridge:
         self.lcm_handle_thread.join()
         print("LCM thread exited")
 
-    def register_low_state_subscriber(self, topic=None):
-        if topic is None:
-            topic = self.topic_state
-        self.low_state_suber = self.lc.subscribe(topic, self.lowStateHandler)
-        self.low_state_suber.set_queue_capacity(1)
-
-    def register_low_cmd_subscriber(self, topic=None):
-        if topic is None:
-            topic = self.topic_cmd
-        self.low_cmd_suber = self.lc.subscribe(topic, self.lowCmdHandler)
-        self.low_cmd_suber.set_queue_capacity(1)
-
-    def lcmHandleThread(self):
-        while self.is_running:
-            self.lc.handle_timeout(0)
-
-    def lowCmdHandler(self, channel, data):
-        if self.mj_data != None:
-            self.low_cmd = eval(self.topic_cmd+"_t").decode(data)
-            self.low_cmd_received = True
-
-    @abstractmethod
-    def lowStateHandler(self, channel, data):
-        raise NotImplementedError("Subclass must implement this for replay mode")
-
-    def update_motor_cmd(self):
-        for i in range(self.num_motor):
-            ctrlrange = self.mj_model.actuator_ctrlrange[i]
-            motor_tau = self.low_cmd.qj_tau[i] +\
-                        self.low_cmd.kp[i] * (self.low_cmd.qj_pos[i] - self.low_state.qj_pos[i]) +\
-                        self.low_cmd.kd[i] * (self.low_cmd.qj_vel[i] - self.low_state.qj_vel[i])
-            self.mj_data.ctrl[i] = np.clip(motor_tau, ctrlrange[0], ctrlrange[1])
-
     def parse_common_low_state(self):
         if self.mj_data == None:
             return -1
         
+        # Assume each joint has a position, velocity, and torque sensor
         for i in range(self.num_motor):
             self.low_state.qj_pos[i] = self.mj_data.sensordata[i] + self.joint_offsets[i] \
                 + np.random.normal(0, self.mj_model.sensor_noise[i])
@@ -156,7 +148,6 @@ class Lcm2MujocoBridge:
             self.low_state.quaternion[:] = rpy_to_quat(self.low_state.rpy).to_numpy().tolist()
 
             # Body frame angular rate and linear acceleration
-            # pdb.set_trace()
             self.low_state.omega[:] = self.mj_data.sensordata[self.dim_motor_sensor + 4:self.dim_motor_sensor + 7]
             self.low_state.omega[0] += np.random.normal(0, self.mj_model.sensor_noise[self.dim_motor_sensor + 1])
             self.low_state.omega[1] += np.random.normal(0, self.mj_model.sensor_noise[self.dim_motor_sensor + 1])
@@ -169,6 +160,10 @@ class Lcm2MujocoBridge:
             # self.mj_data.qvel[3:6] # this is Eular angle rate != omega_body
             # self.low_state.omega[:] = omega_body.tolist()
         return 0
+
+    @abstractmethod
+    def parse_robot_specific_low_state(self):
+        pass
 
     def publish_low_state(self, topic=None, skip_common_state=False):
         if topic is None:
@@ -185,10 +180,6 @@ class Lcm2MujocoBridge:
         self.low_state.timestamp = time.time_ns()
         self.lc.publish(topic, self.low_state.encode())
 
-    @abstractmethod
-    def parse_robot_specific_low_state(self):
-        pass
-
     def publish_gamepad_cmd(self):
         if self.gamepad == None:
             return
@@ -200,6 +191,14 @@ class Lcm2MujocoBridge:
         self.gamepad_cmd.wz = cmd[2]
         self.gamepad_cmd.e_stop = cmd[3]
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
+
+    def update_motor_cmd(self):
+        for i in range(self.num_motor):
+            motor_torque_limits = self.mj_model.actuator_ctrlrange[i]
+            motor_torque = self.low_cmd.qj_tau[i] +\
+                           self.low_cmd.kp[i] * (self.low_cmd.qj_pos[i] - self.low_state.qj_pos[i]) +\
+                           self.low_cmd.kd[i] * (self.low_cmd.qj_vel[i] - self.low_state.qj_vel[i])
+            self.mj_data.ctrl[i] = np.clip(motor_torque, motor_torque_limits[0], motor_torque_limits[1])
 
     def print_scene_info(self):
         print(" ")

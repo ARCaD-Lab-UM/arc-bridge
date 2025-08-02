@@ -357,7 +357,7 @@ class Tron1PointfootBridge(Lcm2MujocoBridge):
 
         return p_foot + self.hip_pos_body_frame, v_foot
 
-    def lowStateHandler(self, channel, data):
+    def lcm_state_handler(self, channel, data):
         if self.mj_data == None:
             return
 
