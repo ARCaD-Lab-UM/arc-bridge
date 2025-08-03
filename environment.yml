@@ -7,9 +7,9 @@ dependencies:
   - numpy < 2
   - scipy
   - pinocchio
-  - casadi >= 3.7.0
   - pip
   - pip:
     - inputs == 0.5
     - mujoco == 3.3.4
     - lcm == 1.5.1
+    - casadi == 3.7.0
