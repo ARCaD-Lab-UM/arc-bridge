@@ -83,7 +83,10 @@ class HopperBridge(Lcm2MujocoBridge):
 
         msg = eval(self.topic_state+"_t").decode(data)
         self.mj_data.qpos[0] = msg.position[0]
-        self.mj_data.qpos[1] = msg.position[2]-0.47 # offsetted z joint height in xml
+        # Subtract IMU offset to get torso height,
+        # since torso center is the actual rotation center,
+        # which is connected to the virtual joints.
+        self.mj_data.qpos[1] = msg.position[2] - 0.08 * np.cos(msg.rpy[1])
         self.mj_data.qpos[2] = msg.rpy[1]
         self.mj_data.qpos[3:5] = msg.qj_pos
         self.mj_data.qvel[:] = 0

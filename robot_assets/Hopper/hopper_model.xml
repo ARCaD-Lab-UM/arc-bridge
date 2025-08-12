@@ -23,14 +23,14 @@
   </default>
 
   <keyframe>
-    <key name="0" qpos="0 0 0 0.9 -1.8" />
+    <key name="0" qpos="0 0.4 0 0.9 -1.8" />
     <!-- <key name="0" qpos="0 0 0 0.9 -1.8 0 0 0 0 0 0 0 0 0 0 0 0 0 0" /> -->
   </keyframe>
 
   <worldbody>
-    <body name="Base" pos="0 0 0.4" quat="1 0 0 0">
+    <body name="Base" pos="0 0 0" quat="1 0 0 0">
       <joint name="x_joint" type="slide" axis="1 0 0" range="-100 100" />
-      <joint name="z_joint" type="slide" axis="0 0 1" range="-0.4 5" />
+      <joint name="z_joint" type="slide" axis="0 0 1" range="0 5" />
       <joint name="pitch_joint" type="hinge" axis="0 1 0"/>
 
       <body name="Torso" childclass="hopper">
@@ -42,7 +42,7 @@
           diaginertia="0.001 0.04 0.04"
           />
         
-        <site name="imu" pos="0 0 0" />
+        <site name="imu" pos="0 0 0.08" />
         
         <body name="Thigh" pos="0 -0. 0">
           <joint name="thigh_joint" class="hip" axis="0 1 0"/>

@@ -17,6 +17,7 @@
 
   <asset>
     <material name="metal" rgba="0.75 0.75 0.75 1"/>
+    <material name="red" rgba="1 0.3 0.3 0.8"/>
 
     <mesh name="torso_mesh" content_type="model/stl" file="base_link.STL"/>
     <mesh name="thigh_mesh" content_type="model/stl" file="Thigh.STL"/>
@@ -61,7 +62,7 @@
           <geom type="cylinder" size="0.04 0.01" pos="0 0 0"/>
         </body>
 
-        <site name="imu" pos="0 0 0" />
+        <site name="imu" pos="0 0 0.08" type="box" size="0.015 0.015 0.005" material="red"/>
 
         <body name="Thigh">
           <inertial 
