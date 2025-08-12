@@ -38,7 +38,7 @@ def quat_to_rpy(q:Quaternion) -> np.ndarray:
     Convert a quaternion to RPY. Return
     angles in (roll, pitch, yaw).
     """
-    rpy = np.zeros((3, 1), dtype=DTYPE)
+    rpy = np.zeros(3, dtype=DTYPE)
     as_ = np.min([-2.*(q.x*q.z-q.w*q.y),.99999])
     # roll
     rpy[0] = np.arctan2(2.*(q.y*q.z+q.w*q.x), q.w*q.w - q.x*q.x - q.y*q.y + q.z*q.z)
