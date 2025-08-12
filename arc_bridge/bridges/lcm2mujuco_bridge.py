@@ -36,7 +36,7 @@ class Lcm2MujocoBridge:
         # Check sensors
         for i in range(self.dim_motor_sensor, self.mj_model.nsensor):
             name = mujoco.mj_id2name(self.mj_model,
-                                     mujoco._enums.mjtObj.mjOBJ_SENSOR, i)
+                                     mujoco.mjtObj.mjOBJ_SENSOR, i)
             if name == "imu_quat":
                 self.have_imu = True
             if name == "frame_pos":
