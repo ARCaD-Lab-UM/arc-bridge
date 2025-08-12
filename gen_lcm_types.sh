@@ -40,8 +40,10 @@ fi
 echo "Found LCM jar at path: $LCM_JAR_PATH"
 
 # Remove old generated types
-echo "Removing old generated types from $LCM_PKG_PATH"
-rm -r $LCM_PKG_PATH
+if [ -d "$LCM_PKG_PATH" ]; then
+    echo "Removing old generated types from $LCM_PKG_PATH"
+    rm -r $LCM_PKG_PATH
+fi
 
 # Make a folder to store generated types if not exists
 mkdir -p $LCM_GEN_DES_PATH
@@ -66,21 +68,22 @@ cd ..
 # Find the latest MATLAB preference folder
 if [[ -d "$MATLAB_PREF_DIR_BASE" ]]; then
     MATLAB_LATEST_PREF_DIR=$(ls -d "$MATLAB_PREF_DIR_BASE"/R* 2>/dev/null | sort -V | tail -n 1)
-    
+
     if [[ -z "$MATLAB_LATEST_PREF_DIR" ]]; then
-        echo "No MATLAB preference folder found."
-        exit 1
+        echo "No MATLAB preference folder found. Skipping MATLAB configuration."
+        exit 0
     fi
 
     echo "Using MATLAB preference folder: $MATLAB_LATEST_PREF_DIR"
+
+    # Write to javaclasspath.txt
+    JAVACLASS_PATH_FILE="$MATLAB_LATEST_PREF_DIR/javaclasspath.txt"
+
+    # Add the generated LCM types to javaclasspath.txt
+    echo "Adding generated LCM types to $JAVACLASS_PATH_FILE"
+    echo -e "$LCM_JAR_PATH\n$LCM_JAVA_ARCHIVE_PATH\n" > "$JAVACLASS_PATH_FILE"
 else
     echo "MATLAB preference base directory not found: $MATLAB_PREF_DIR_BASE"
-    exit 1
+    echo "Skipping MATLAB configuration."
+    exit 0
 fi
-
-# Write to javaclasspath.txt
-JAVACLASS_PATH_FILE="$MATLAB_LATEST_PREF_DIR/javaclasspath.txt"
-
-# Add the generated LCM types to javaclasspath.txt
-echo "Adding generated LCM types to $JAVACLASS_PATH_FILE"
-echo -e "$LCM_JAR_PATH\n$LCM_JAVA_ARCHIVE_PATH\n" > "$JAVACLASS_PATH_FILE"
