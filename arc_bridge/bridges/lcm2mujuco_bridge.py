@@ -137,10 +137,7 @@ class Lcm2MujocoBridge:
 
         if self.have_foot_sensor:
             # Ground truth contact sensing
-            if self.num_foot_sensor > 1:
-                self.low_state.foot_force[:] = self.mj_data.sensordata[self.dim_motor_sensor + 16:self.dim_motor_sensor + 16 + self.num_foot_sensor]
-            else:
-                self.low_state.foot_force = self.mj_data.sensordata[self.dim_motor_sensor + 16]
+            self.low_state.foot_force[:] = self.mj_data.sensordata[self.dim_motor_sensor + 16:self.dim_motor_sensor + 16 + self.num_foot_sensor]
 
         if self.have_imu:
             quat = Quaternion(*self.mj_data.sensordata[self.dim_motor_sensor:self.dim_motor_sensor + 4])

@@ -17,5 +17,5 @@ struct hopper_state_t
     double   qj_vel[2];
     double   qj_tau[2];
 
-    double   foot_force;
+    double   foot_force[1];
 }
