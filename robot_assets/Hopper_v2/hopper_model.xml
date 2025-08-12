@@ -1,0 +1,128 @@
+<mujoco model="hopper_model_v2">
+  <compiler angle="radian" meshdir="meshes/" autolimits="true"/>
+
+  <default>
+    <default class="hopper_v2">
+      <geom material="metal" />
+      <joint damping="0.1" armature="0.01" frictionloss="0.2"/>
+      <motor ctrlrange="-30 30"/>
+      <default class="collision">
+        <geom mass="0" density="0" group="3"/>
+      </default>
+      <default class="virtual_joint">
+        <joint damping="0" armature="0" frictionloss="0"/>
+      </default>
+    </default>
+  </default>
+
+  <asset>
+    <material name="metal" rgba="0.75 0.75 0.75 1"/>
+
+    <mesh name="torso_mesh" content_type="model/stl" file="base_link.STL"/>
+    <mesh name="thigh_mesh" content_type="model/stl" file="Thigh.STL"/>
+    <mesh name="shank_mesh" content_type="model/stl" file="Shank.STL"/>
+  </asset>
+
+  <keyframe>
+    <key name="0" qpos="0 0.4 0 0.9 -1.8" />
+  </keyframe>
+
+  <worldbody>
+    <body name="base_link" pos="0 0 0" quat="1 0 0 0">
+      <joint name="x_joint" type="slide" axis="1 0 0" range="-100 100" class="virtual_joint"/>
+      <joint name="z_joint" type="slide" axis="0 0 1" range="0 5" class="virtual_joint"/>
+      <joint name="pitch_joint" type="hinge" axis="0 1 0" class="virtual_joint"/>
+
+      <body name="Torso" childclass="hopper_v2">
+        <inertial 
+          pos="-3.47977543608903E-05 0.0283416675738976 0.0123233505852236"  
+          mass="0.691606" 
+          diaginertia="0.000386049953446763 0.00516450436448171 0.00483980418811997"
+        />
+
+        <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="torso_mesh"/>
+        <geom size="0.325 0.01 0.01" pos="0 0.0025 0.0625" type="box" class="collision"/>
+
+        <body name="Front_Weight" pos="0.3 0 0.08">
+          <inertial 
+            pos="0 0 0" 
+            mass="0.252" 
+            diaginertia="1.3e-4 1.3e-4 2.55e-4"
+          />
+          <geom type="cylinder" size="0.04 0.01" pos="0 0 0"/>
+        </body>
+
+        <body name="Back_Weight" pos="-0.3 0 0.08">
+          <inertial 
+            pos="0 0 0" 
+            mass="0.252" 
+            diaginertia="1.3e-4 1.3e-4 2.55e-4"
+          />
+          <geom type="cylinder" size="0.04 0.01" pos="0 0 0"/>
+        </body>
+
+        <site name="imu" pos="0 0 0" />
+
+        <body name="Thigh">
+          <inertial 
+            pos="-0.00266508662940908 -0.0210989064707258 -0.0184404554474768"  
+            mass="0.680521373875353" 
+            diaginertia="0.00121567934619546 0.0015642418763912 0.000404763200727095"
+          />
+          <joint name="thigh_joint" pos="0 0 0" axis="0 1 0" range="-1.7 1.6"/>
+          <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="thigh_mesh"/>
+          <geom size="0.03 0.015 0.09" pos="-0.017 0 -0.085" type="box" class="collision"/>
+
+          <body name="Shank" pos="0 0 -0.22">
+            <inertial 
+              pos="0.00917157947139449 -7.73256057344934E-05 -0.104282712433589" 
+              quat="0.997888 0 -0.0649542 0" 
+              mass="0.0613493769638906" 
+              diaginertia="0.000162590011682181 0.000166902322129974 8.47092575333008E-06"
+            />
+            <joint name="calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7 -0.4"/>
+            <geom type="mesh" contype="0" conaffinity="0" group="1" density="0" mesh="shank_mesh"/>
+            <geom size="0.01 0.005 0.095" pos="0.01 0 -0.095" quat="0.997888 0 -0.0649542 0" type="box" class="collision"/>
+
+            <body name="Foot" pos="0.019174 0 -0.21916">
+              <inertial 
+                pos="0 0 0"
+                mass="0.03" 
+                diaginertia="5E-06 5E-06 5E-06"
+              />
+              <geom size="0.02" class="collision" priority="1" condim="6" friction="1.0 0.02 0.01"/>
+
+              <site name="foot_site" pos="0 0 0" size="0.02" group="3"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor class="hopper_v2" name="thigh" joint="thigh_joint" />
+    <motor class="hopper_v2" name="calf" joint="calf_joint" />
+  </actuator>
+
+  <sensor>
+    <jointpos name="thigh_pos" joint="thigh_joint" noise="0.01"/>
+    <jointpos name="calf_pos" joint="calf_joint" noise="0.01"/>
+
+    <jointvel name="thigh_vel" joint="thigh_joint" noise="0.01"/>
+    <jointvel name="calf_vel" joint="calf_joint" noise="0.01"/>
+
+    <jointactuatorfrc name="thigh_torque" joint="thigh_joint" noise="0.01"/>
+    <jointactuatorfrc name="calf_torque" joint="calf_joint" noise="0.01"/>
+
+    <framequat name="imu_quat" objtype="site" objname="imu" noise="0.01"/>
+    <gyro name="imu_gyro" site="imu" noise="0.01"/>
+    <accelerometer name="imu_acc" site="imu" noise="0.01"/>
+
+    <framepos name="frame_pos" objtype="site" objname="imu"/>
+    <framelinvel name="frame_vel" objtype="site" objname="imu"/>
+
+    <touch name="foot_force" site="foot_site"/>
+  </sensor>
+
+</mujoco>

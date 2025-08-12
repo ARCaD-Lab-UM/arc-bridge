@@ -11,7 +11,8 @@ class Config:
     asset_root = package_root / "robot_assets"
 
     robot_path_dict = {
-        "hopper":           "Hopper/hopper_scene.xml",
+        # "hopper":           "Hopper/hopper_scene.xml",
+        "hopper":           "Hopper_v2/hopper_scene.xml",
         "tron1_pointfoot":  "Tron1Pointfoot/xml/robot.xml",
         "tron1_wheeled":    "Tron1Wheeled/xml/robot_object.xml",
         "tron1_linefoot":   "Tron1Linefoot/xml/robot.xml",
