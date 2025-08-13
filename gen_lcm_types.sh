@@ -24,19 +24,26 @@ JAVA_ARCHIVE_NAME=lcm_msgs.jar
 LCM_PKG_PATH=$LCM_GEN_DES_PATH/$LCM_PKG_DIR
 LCM_JAVA_ARCHIVE_PATH=$LCM_PKG_PATH/$JAVA_ARCHIVE_NAME
 
-# Try to automatically determine where the LCM java file is
-LCM_JAR_PATH=`pkg-config --variable=classpath lcm-java`
-if [ $? != 0 ] ; then
-    if [ -e /usr/local/share/java/lcm.jar ] ; then
-        LCM_JAR_PATH=/usr/local/share/java/lcm.jar
-    else
-        if [ -e $LCM_TYPE_PATH/lcm/lcm-java/lcm.jar ] ; then
-            LCM_JAR_PATH=$LCM_TYPE_PATH/lcm/lcm-java/lcm.jar
-        else
-            LCM_JAR_PATH=$LCM_TYPE_PATH/lcm.jar
-        fi
-    fi
+LCM_LOCATION=$(pip show lcm | grep Location | cut -d' ' -f2)
+
+# Try to automatically locate the lcm.jar file
+if [ -e $LCM_LOCATION/share/java/lcm.jar ]; then
+    # pre-built lcm.jar from pip
+    LCM_JAR_PATH=$LCM_LOCATION/share/java/lcm.jar
+elif [ -e /usr/local/share/java/lcm.jar ] ; then
+    # system-wide installation
+    LCM_JAR_PATH=/usr/local/share/java/lcm.jar
+elif [ -e lcm/build/lcm-java/lcm.jar ] ; then
+    # built from source in the lcm directory
+    LCM_JAR_PATH=lcm/build/lcm-java/lcm.jar
+elif [ -e $LCM_TYPE_PATH/lcm.jar ] ; then
+    # manually copied lcm.jar in the lcm_types directory
+    LCM_JAR_PATH=$LCM_TYPE_PATH/lcm.jar
+else
+    echo "Unable to locate lcm.jar, aborting."
+    exit 1
 fi
+
 echo "Found LCM jar at path: $LCM_JAR_PATH"
 
 # Remove old generated types
@@ -59,7 +66,10 @@ lcm-gen -x $LCM_TYPE_PATH/*.lcm --cpp-hpath $LCM_GEN_DES_PATH
 # Compile java types
 echo "Compiling generated Java types"
 # java release 8 is used for compatability of MATLAB >= 2023b
-javac -cp $LCM_JAR_PATH $LCM_PKG_PATH/*.java --release 8 
+javac -cp $LCM_JAR_PATH $LCM_PKG_PATH/*.java --release 8
+if [ $? != 0 ]; then
+    echo "Error: Java types' compilation failed."
+fi
 
 cd $LCM_GEN_DES_PATH
 jar cf $LCM_PKG_DIR/$JAVA_ARCHIVE_NAME $LCM_PKG_DIR/*.class
