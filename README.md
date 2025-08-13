@@ -4,36 +4,34 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 ## TODOs
 - [ ] Add a flag to turn state estimator on/off
 - [ ] Support PlotJuggler on the fly
-- [ ] Support CI via GitHub action
+- [x] Support CI via GitHub action
 
 ## Quick Start
 1. Make sure you have java installed. Type `javac` to verify.
-2. Clone this repo using **SSH**.
+1. Clone this repo using **SSH**.
     ```sh
     git clone git@github.com:ARCaD-Lab-UM/arc-bridge.git
     ```
-3. Install LCM by following its [instruction](https://lcm-proj.github.io/lcm/content/install-instructions.html).
-4. Check [this doc](https://lcm-proj.github.io/lcm/content/java-notes.ml#finding-lcm-jar) to find the compiled `lcm.jar` and copy it to `<lcm_types>` folder.
-5. Generate LCM types.
-    ```sh
-    gen_lcm_types.sh
-    ```
-    :warning: Redo this step if any LCM types are changed.
-6. Create the conda environment.
+1. Create a conda environment.
     ```sh
     conda env create -f environment.yml
     conda activate arcpy
     ```
-6. Install `arc-bridge` as a Python module in editable and compatible mode.
+1. Generate LCM types.
+    ```sh
+    ./gen_lcm_types.sh
+    ```
+    :warning: Redo this step if any LCM types are changed.
+1. Install `arc-bridge` as a Python module in editable and compatible mode.
     ```sh
     pip install -e . --no-deps --config-settings editable_mode=compat
     ```
-7. Launch it in any command line with `arcpy` activated.
+1. Launch it in any command line with `arcpy` activated.
     ```sh
     arc-bridge
     ```
     Use `--help` to find other launching options.
-8. Check the communication status and visualize data.
+1. Check the communication status and visualize data.
     ```sh
     arc-lcm-spy
     ```
