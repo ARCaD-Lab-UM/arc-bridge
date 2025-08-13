@@ -2,9 +2,11 @@
 Software bridge of a nominal robot controller to Mujoco simulator via LCM communication protocol.
 
 ## TODOs
+- [x] Support CI via GitHub action
+- [ ] Verify installation steps on macOS
+- [ ] Automate installation steps on Windows
 - [ ] Add a flag to turn state estimator on/off
 - [ ] Support PlotJuggler on the fly
-- [x] Support CI via GitHub action
 
 ## Quick Start
 1. Make sure you have java installed. Type `javac` to verify.

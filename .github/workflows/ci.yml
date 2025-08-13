@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ "test_ci"]
+    branches: [ "package"]
   pull_request:
-    branches: [ "test_ci"]
+    branches: [ "package"]
 
 # env:
 #   CMAKE_FLAGS: -DLCM_ENABLE_EXAMPLES=OFF -DLCM_ENABLE_TESTS=OFF
