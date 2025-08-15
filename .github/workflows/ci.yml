@@ -34,7 +34,7 @@ jobs:
     - name: Verify Java installation
       run: javac -version
 
-    # - name: Install LCM
+    # - name: Build and install LCM from source
     #   run: |
     #     sudo apt update
     #     sudo apt install libglib2.0-dev
@@ -45,6 +45,15 @@ jobs:
     #     cmake --build build
     #     sudo cmake --install build
     #     cd ..
+
+    # TODO use pip instead of conda for faster setup
+
+    - name: Cache conda packages
+      uses: actions/cache@v3
+      with:
+        enableCrossOsArchive: true
+        key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+        restore-keys: ${{ runner.os }}-conda-
 
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v3
@@ -58,9 +67,8 @@ jobs:
     - name: Generate LCM types
       run: bash gen_lcm_types.sh
 
-    - name: Install package
+    - name: Install acr-bridge package
       run: |
-        # Install the package in editable mode
         pip install -e . --no-deps --config-settings editable_mode=compat
 
     - name: Install testing and linting tools

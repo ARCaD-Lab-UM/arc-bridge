@@ -2,9 +2,9 @@ name: CI Windows
 
 on:
   push:
-    branches: [ "test_ci_win"]
+    branches: [ "package"]
   pull_request:
-    branches: [ "test_ci_win"]
+    branches: [ "package"]
 
 jobs:
   test:
