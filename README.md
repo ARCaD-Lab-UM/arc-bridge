@@ -3,9 +3,9 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 
 ## TODOs
 - [x] Support CI via GitHub action
+- [x] Automate installation steps on Windows
 - [ ] Verify installation steps on macOS
-- [ ] Automate installation steps on Windows
-- [ ] Add a flag to turn state estimator on/off
+- [ ] Add a flag to turn state estimator (if applicable) on/off
 - [ ] Support PlotJuggler on the fly
 
 ## Quick Start
@@ -21,7 +21,8 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
     ```
 1. Generate LCM types.
     ```sh
-    ./gen_lcm_types.sh
+    bash gen_lcm_types.sh # Ubuntu bash
+    gen_lcm_types_win.cmd # Windows cmd
     ```
     :warning: Redo this step if any LCM types are changed.
 1. Install `arc-bridge` as a Python module in editable and compatible mode.
@@ -55,16 +56,10 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 
 <details>
     <summary>  
-        <b> For macOS or Windows users </b>
+        <b> For macOS users </b>
     </summary>
 
-macOS: Use `mjpython` instead of `python` to launch the bridge.
-<br>
-Windows: 
-1. Change the `__init__.py` of installed LCM package in `site-packages` based on this [PR](https://github.com/lcm-proj/lcm/pull/581).
-2. Install `glib` in conda.
-3. Run `gen_lcm_types_win.cmd` to generate LCM types.
-4. Install `arc-bridge` as in step 6.
+Use `mjpython` instead of `python` to launch the bridge.
 </details>
 
 <details>
@@ -73,18 +68,6 @@ Windows:
     </summary>
 
 Restart MATLAB once after generating LCM types.
-</details>
-
-
-<details>
-    <summary>  
-        <b> Permission denied when initializing LCM as a submodule </b>
-    </summary>
-
-Use **SSH** option to clone this repo.
-```sh
-git clone --recursive git@github.com:ARCaD-Lab-UM/agile-robot-control-bridge.git
-```
 </details>
 
 <details>
