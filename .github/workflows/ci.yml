@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9"]
-        os: [ubuntu-24.04]
+        os: [macos-latest, ubuntu-24.04]
 
     runs-on: ${{ matrix.os }}
 
@@ -52,6 +52,7 @@ jobs:
       uses: actions/cache@v3
       with:
         enableCrossOsArchive: true
+        path: ~/conda_pkgs_dir
         key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
         restore-keys: ${{ runner.os }}-conda-
 
