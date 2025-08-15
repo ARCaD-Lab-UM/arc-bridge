@@ -6,21 +6,31 @@ on:
   pull_request:
     branches: [ "package"]
 
-# env:
-#   CMAKE_FLAGS: -DLCM_ENABLE_EXAMPLES=OFF -DLCM_ENABLE_TESTS=OFF
-
 jobs:
   test:
     strategy:
       matrix:
         python-version: ["3.9"]
-        os: [macos-latest, ubuntu-24.04]
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-24.04
+            shell: bash -el {0}
+            cache_path: ~/conda_pkgs_dir
+            lcm_script: bash gen_lcm_types.sh
+          - os: macos-latest
+            shell: bash -el {0}
+            cache_path: ~/conda_pkgs_dir
+            lcm_script: bash gen_lcm_types.sh
+          - os: windows-latest
+            shell: cmd /C CALL {0}
+            cache_path: D:\conda_pkgs_dir
+            lcm_script: gen_lcm_types_win.cmd
 
     runs-on: ${{ matrix.os }}
 
     defaults:
       run:
-        shell: bash -el {0} # Avoid `conda init` and `conda activate`
+        shell: ${{ matrix.shell }}
 
     steps:
     - uses: actions/checkout@v4
@@ -34,25 +44,11 @@ jobs:
     - name: Verify Java installation
       run: javac -version
 
-    # - name: Build and install LCM from source
-    #   run: |
-    #     sudo apt update
-    #     sudo apt install libglib2.0-dev
-    #     # Install LCM from source
-    #     git clone https://github.com/lcm-proj/lcm.git
-    #     cd lcm
-    #     cmake -B build ${{env.CMAKE_FLAGS}}
-    #     cmake --build build
-    #     sudo cmake --install build
-    #     cd ..
-
-    # TODO use pip instead of conda for faster setup
-
     - name: Cache conda packages
       uses: actions/cache@v3
       with:
         enableCrossOsArchive: true
-        path: ~/conda_pkgs_dir
+        path: ${{ matrix.cache_path }}
         key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
         restore-keys: ${{ runner.os }}-conda-
 
@@ -64,9 +60,10 @@ jobs:
         activate-environment: arcpy
         environment-file: environment.yml
         auto-activate-base: false
+        pkgs-dirs: ${{ matrix.cache_path }}
 
     - name: Generate LCM types
-      run: bash gen_lcm_types.sh
+      run: ${{ matrix.lcm_script }}
 
     - name: Install acr-bridge package
       run: |

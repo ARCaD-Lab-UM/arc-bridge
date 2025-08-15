@@ -4,7 +4,7 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 ## TODOs
 - [x] Support CI via GitHub action
 - [x] Automate installation steps on Windows
-- [ ] Verify installation steps on macOS
+- [x] Verify installation steps on macOS
 - [ ] Add a flag to turn state estimator (if applicable) on/off
 - [ ] Support PlotJuggler on the fly
 
