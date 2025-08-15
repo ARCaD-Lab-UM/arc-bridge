@@ -4,10 +4,11 @@ channels:
   - conda-forge
 dependencies:
   - python = 3.9
-  - numpy < 2
-  - scipy
-  - pinocchio
-  - pip
+  - numpy = 1.26.4
+  - scipy = 1.13.1
+  - pinocchio = 3.7.0
+  - glib = 2.84.2
+  - pip = 25.1
   - pip:
     - inputs == 0.5
     - mujoco == 3.3.4
