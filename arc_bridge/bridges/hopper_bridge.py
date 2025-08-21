@@ -49,12 +49,12 @@ class HopperBridge(Lcm2MujocoBridge):
         else:
             self.thr_counter = 0
 
-        # print(f"GT: {self.low_state.foot_force:.5f}\t EST {curr_q_knee_pose_err:.5f}")
+        # print(f"GT: {self.low_state.foot_force[0]:.5f}\t EST {curr_q_knee_pose_err:.5f}")
 
         if is_estimated_contact:
-            self.low_state.foot_force = 1
+            self.low_state.foot_force[0] = 1
         else:
-            self.low_state.foot_force = 0
+            self.low_state.foot_force[0] = 0
 
         # Estimated position and velocity based on IMU and encoder readings
         se_state = self.state_estimator.predict(self.low_state.acceleration)
