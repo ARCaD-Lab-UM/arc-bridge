@@ -6,6 +6,7 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 - [x] Automate installation steps on Windows
 - [x] Verify installation steps on macOS
 - [ ] Add a flag to turn state estimator (if applicable) on/off
+- [ ] Document how to add a custom robot
 
 ## Quick Start
 1. Make sure you have java installed. Type `javac` to verify.
