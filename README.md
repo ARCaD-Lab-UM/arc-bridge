@@ -6,35 +6,38 @@ Software bridge of a nominal robot controller to Mujoco simulator via LCM commun
 - [x] Automate installation steps on Windows
 - [x] Verify installation steps on macOS
 - [ ] Add a flag to turn state estimator (if applicable) on/off
-- [ ] Support PlotJuggler on the fly
 
 ## Quick Start
 1. Make sure you have java installed. Type `javac` to verify.
-1. Clone this repo using **SSH**.
+1. Clone this repo:
     ```sh
     git clone git@github.com:ARCaD-Lab-UM/arc-bridge.git
     ```
-1. Create a conda environment.
+1. Create a conda environment:
     ```sh
     conda env create -f environment.yml
     conda activate arcpy
     ```
-1. Generate LCM types.
+1. Generate LCM types:
     ```sh
-    bash gen_lcm_types.sh # Ubuntu bash
-    gen_lcm_types_win.cmd # Windows cmd
+    bash gen_lcm_types.sh # Ubuntu or macOS
+    gen_lcm_types_win.cmd # Windows
     ```
-    :warning: Redo this step if any LCM types are changed.
-1. Install `arc-bridge` as a Python module in editable and compatible mode.
+    :warning: Redo this if any LCM types are changed. Restart MATLAB to make changes effective.
+1. Install `arc-bridge` as a Python module in editable and compatible mode:
     ```sh
     pip install -e . --no-deps --config-settings editable_mode=compat
     ```
-1. Launch it in any command line with `arcpy` activated.
+1. Launch it in any terminal with `arcpy` activated:
     ```sh
-    arc-bridge
+    arc-bridge # Ubuntu or Windows
     ```
     Use `--help` to find other launching options.
-1. Check the communication status and visualize data.
+    If you are using macOS, launch it in this repo's root folder:
+    ```sh
+    mjpython arc_bridge/main.py # macOS
+    ```
+1. Check the communication status and visualize data:
     ```sh
     arc-lcm-spy
     ```
@@ -84,17 +87,6 @@ Set NVIDIA GPU as primary renderer (for systems with NVIDIA GPUs)
 ```
 export __NV_PRIME_RENDER_OFFLOAD=1
 export __GLX_VENDOR_LIBRARY_NAME=nvidia
-```
-</details>
-
-<details>
-    <summary>  
-        <b> limits.h: No such file or directory </b>
-    </summary>
-
-When compiling LCM, disable unit tests.
-```sh
-cmake .. -DLCM_ENABLE_EXAMPLES=OFF -DLCM_ENABLE_TESTS=OFF
 ```
 </details>
 
