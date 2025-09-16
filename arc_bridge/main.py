@@ -157,7 +157,8 @@ def main():
         with viewer.lock():
             # Turn state_only on to make sync() really fast.
             # No mj_model modification on the fly is allowed instead.
-            viewer.sync(state_only=True) # state_only is introduced in mujoco 3.3.4
+            # viewer.sync(state_only=True) # state_only is introduced in mujoco 3.3.4
+            viewer.sync()
 
         time.sleep(Config.dt_viewer)
 

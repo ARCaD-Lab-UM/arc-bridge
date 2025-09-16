@@ -9,7 +9,7 @@
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba="0.9 0.9 0.9 1.0"/>
         </default>
         <joint armature="0.01" damping="0.01"/>
-        <geom contype="1" conaffinity="1" condim="3" friction="0.6 0.005 0.0001" rgba="0.5 0.6 0.7 0.0" margin="0.001" group="0" />
+        <geom contype="1" conaffinity="1" condim="3" friction="0.2 0.005 0.0001" rgba="0.5 0.6 0.7 0.0" margin="0.001" group="0" />
     </default>
     <visual>
         <rgba com="0.502 1.0 0 0.5" contactpoint="1.0 1.0 0.6 0.4" contactforce="0.2 0.98 0.2 0.8"/>
@@ -36,7 +36,7 @@
         <option timestep="0.001"/>
 
     <keyframe>
-        <key name="0" qpos="0 0 0.92 1 0 0 0 0 -0.1 0 0 0 -0.1 0 0" />
+         <key name="0" qpos="0 0 0.92 1 0 0 0 0 -0.1 0 0 0 -0.1 0 0" />
     </keyframe>
 
     <worldbody>
@@ -53,7 +53,7 @@
 
             <body name="abad_L_Link" pos="0.05556 0.105 -0.2602">
                 <inertial pos="-0.06977 0.04479 0.00057" quat="0.595024 0.579772 0.394141 0.393019" mass="1.469" diaginertia="0.00252289 0.00208104 0.00139163" />
-                <joint name="abad_L_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.38397 1.39626" />
+                <joint name="abad_L_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.01 0.01" />
                 <geom class="visual" rgba="0.79216 0.81961 0.93333 1" mesh="abad_L_Link" />
                 <geom name="abad_L_collision" type="cylinder" pos="-0.08 0 0" euler="1.57 0 0" size="0.05 0.025" rgba="0 0 1 0" />
 
@@ -73,14 +73,14 @@
                             <inertial pos="3e-05 0.00807 -2e-05" quat="0.683013 0.183016 0.183017 0.683011" mass="1.08" diaginertia="0.00974272 0.00515568 0.00515344" />
                             <joint name="wheel_L_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1000000 1000000" frictionloss="0.01" />
                             <geom class="visual" rgba="0.26667 0.26667 0.26667 1" mesh="wheel_L_Link" />
-                            <geom name="wheel_L_collision" pos="0.0 0.008 0.0" size="0.127 0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1" />
+                            <geom name="wheel_L_collision" pos="0.0 0.008 0.0" size="0.127 0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1"   friction="0.8 0.005 0.0001" />
                         </body>
                     </body>
                 </body>
             </body>
             <body name="abad_R_Link" pos="0.05556 -0.105 -0.2602">
                 <inertial pos="-0.06977 -0.04479 0.00057" quat="0.393019 0.394141 0.579772 0.595024" mass="1.469" diaginertia="0.00252289 0.00208104 0.00139163" />
-                <joint name="abad_R_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-1.39626 0.38397" />
+                <joint name="abad_R_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.01 0.01" />
                 <geom class="visual" rgba="0.79216 0.81961 0.93333 1" mesh="abad_R_Link" />
                 <geom name="abad_R_collision" type="cylinder" pos="-0.08 0 0" euler="1.57 0 0" size="0.05 0.025" rgba="0 0 1 0" />
 
@@ -100,7 +100,7 @@
                             <inertial pos="3e-05 -0.00807 -2e-05" quat="0.683011 0.183017 0.183016 0.683013" mass="1.08" diaginertia="0.00974272 0.00515568 0.00515344" />
                             <joint name="wheel_R_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1000000 1000000" frictionloss="0.01" />
                             <geom class="visual" rgba="0.26667 0.26667 0.26667 1" mesh="wheel_R_Link" />
-                            <geom name="wheel_R_collision" pos="0.0 -0.008 0.0" size="0.127 0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1" />
+                            <geom name="wheel_R_collision" pos="0.0 -0.008 0.0" size="0.127 0.005" quat="0.707107 0.707107 0 0" type="cylinder" rgba="1 0.423529 0.0392157 1"  friction="0.8 0.005 0.0001" />
                         </body>
                     </body>
                 </body>
