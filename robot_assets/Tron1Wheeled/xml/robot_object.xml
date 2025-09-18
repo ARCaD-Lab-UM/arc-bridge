@@ -1,5 +1,5 @@
 <mujoco model="robot_object">
-  <include file="robot_2d.xml"/>
+  <include file="robot.xml"/>
 
   <statistic center="0 0 0.1" extent="0.8"/>
 
@@ -25,7 +25,7 @@
       <joint name="ob_z_joint" type="slide" axis="0 0 1" range="-0.4 5" />
       <joint name="ob_pitch_joint" type="hinge" axis="0 1 0"/>
       <geom class="visual" name="object" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0"/>
-      <geom name="object_collision" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0" friction="0.6 0.005 0.0001"/>
+      <geom name="object_collision" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0" friction="0.3 0.005 0.0001"/>
     </body>
   </worldbody>
 
