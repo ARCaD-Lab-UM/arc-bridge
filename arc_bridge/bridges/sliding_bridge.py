@@ -1,4 +1,5 @@
 import mujoco
+import pdb
 import numpy as np
 # import pinocchio as pin
 
@@ -13,6 +14,9 @@ class SlidingBridge(Lcm2MujocoBridge):
                                        0, 0.53, -0.55-0.54, 0])
         
     def parse_robot_specific_low_state(self):
-        if len(self.mj_data.qpos) > 15:
-            self.low_state.q_ob = self.mj_data.qpos[15:15+3]
-            self.low_state.dq_ob = self.mj_data.qvel[14:14+3]
+        # pdb.set_trace()
+        self.low_state.pos_ob = self.mj_data.qpos[15:15+3]
+        self.low_state.quat_ob = self.mj_data.qpos[15+3:15+7]
+        self.low_state.vel_ob = self.mj_data.qvel[14:14+3]
+        self.low_state.omega_ob = self.mj_data.qvel[14+3:14+6]   
+        

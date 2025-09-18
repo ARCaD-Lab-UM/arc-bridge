@@ -17,6 +17,8 @@ struct sliding_state_t
     double   qj_vel[8];
     double   qj_tau[8];
 
-    double  q_ob[3];
-    double  dq_ob[3];
+    double  pos_ob[3];
+    double  quat_ob[4];
+    double  vel_ob[3];
+    double  omega_ob[3];
 }
