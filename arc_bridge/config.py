@@ -12,6 +12,7 @@ class Config:
 
     robot_path_dict = {
         # "hopper":           "Hopper/hopper_scene.xml",
+        "sliding":          "Tron1Wheeled/xml/robot_object.xml",
         "hopper":           "Hopper_v2/hopper_scene.xml",
         "tron1_pointfoot":  "Tron1Pointfoot/xml/robot.xml",
         "tron1_wheeled":    "Tron1Wheeled/xml/robot.xml", # "Tron1Wheeled/xml/robot_lock_abad.xml", # "Tron1Wheeled/xml/robot_object.xml",
