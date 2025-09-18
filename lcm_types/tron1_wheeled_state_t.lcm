@@ -16,7 +16,4 @@ struct tron1_wheeled_state_t
     double   qj_pos[8];
     double   qj_vel[8];
     double   qj_tau[8];
-
-    double  q_ob[3];
-    double  dq_ob[3];
 }

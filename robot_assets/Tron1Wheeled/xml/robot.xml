@@ -35,15 +35,13 @@
     </asset>
         <option timestep="0.001"/>
 
-    <keyframe>
-        <!-- with object -->
-        <!-- <key name="0" qpos="0.2 0 0.71  1 0 0 0  0 0.9189 -0.7674 0  0 -0.6017 -0.4339 0 0.4 0.01 0" /> -->
-
-        <!-- calibration pose without the object -->
-        <!-- <key name="0" qpos="0.1 0 0.8  1 0 0 0      0 -0.53 1.09 0     0 -0.53 1.09 0" /> -->
-        
+    <keyframe> 
+        <!-- torso pos; torso quat; left leg (abad, hip, knee wheel) ; right leg -->
         <!-- initiail pose without the object -->
-        <key name="0" qpos="0 0 0.92   1 0 0 0  0 -0.1 0 0          0 -0.1 0 0" />
+        <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" />
+        <!-- calibration pose without the object -->
+        <key name="1" qpos="0.1 0 0.8   1 0 0 0   0 -0.53 1.09 0   0 -0.53 1.09 0" />
+        
     </keyframe>
 
     <worldbody>
