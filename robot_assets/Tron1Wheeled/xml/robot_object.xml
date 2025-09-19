@@ -9,7 +9,7 @@
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba="0.9 0.9 0.9 1.0"/>
         </default>
         <joint armature="0.01" damping="0.01"/>
-        <geom contype="1" conaffinity="1" condim="3" friction="0.6 0.005 0.0001" rgba="0.5 0.6 0.7 0.0" margin="0.001" group="0" />
+        <geom contype="1" conaffinity="1" condim="3" friction="0.1 0.005 0.0001" rgba="0.5 0.6 0.7 0.0" margin="0.001" group="0" />
     </default>
     <visual>
         <rgba com="0.502 1.0 0 0.5" contactpoint="1.0 1.0 0.6 0.4" contactforce="0.2 0.98 0.2 0.8"/>
@@ -129,7 +129,7 @@
       <inertial pos="0 0 0" quat="1 0 0 0" mass="0.5" diaginertia="0.0037 0.0037 0.0037" />
       <joint type="free" limited="false" damping="0.0000" stiffness="0.0000" armature="0"/>
       <geom class="visual" name="object" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0"/>
-      <geom name="object_collision" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0" friction="0.3 0.005 0.0001"/>
+      <geom name="object_collision" type="box" size="0.2 0.15 0.01" pos="0 -0.1 0" quat="1 0 0 0" friction="0.5 0.005 0.0001"/>
     </body>
   </worldbody>
 

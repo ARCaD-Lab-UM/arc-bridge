@@ -41,6 +41,9 @@
         <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" />
         <!-- calibration pose without the object -->
         <key name="1" qpos="0.1 0 0.8   1 0 0 0   0 -0.53 1.09 0   0 -0.53 1.09 0" />
+        <!-- calibration pose from the real robot -->
+        <key name="2" qpos="0.1 0 0.8   1 0 0 0   0 -0.436 0.826 0   0 -0.477 0.887  0" />
+
         
     </keyframe>
 
