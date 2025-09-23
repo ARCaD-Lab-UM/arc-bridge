@@ -15,4 +15,8 @@ struct tron1_wheeled_control_t
     boolean  reset_se;
 
     double  contact[2]; // scheduled contact for each foot
+
+    double u_wrench[8];
+
+    int64_t cost;
 }

@@ -128,36 +128,36 @@
     </actuator>
 
     <sensor>
-        <jointpos name="abad_L_Joint_pos"    joint="abad_L_Joint" noise="0"/>
-        <jointpos name="hip_L_Joint_pos"     joint="hip_L_Joint" noise="0"/>
-        <jointpos name="knee_L_Joint_pos"    joint="knee_L_Joint" noise="0"/>
-        <jointpos name="wheel_L_Joint_pos"   joint="wheel_L_Joint" noise="0"/>
-        <jointpos name="abad_R_Joint_pos"    joint="abad_R_Joint" noise="0"/>
-        <jointpos name="hip_R_Joint_pos"     joint="hip_R_Joint" noise="0"/>
-        <jointpos name="knee_R_Joint_pos"    joint="knee_R_Joint" noise="0"/>
-        <jointpos name="wheel_R_Joint_pos"   joint="wheel_R_Joint" noise="0"/>
+        <jointpos name="abad_L_Joint_pos"    joint="abad_L_Joint" noise="0.01"/>
+        <jointpos name="hip_L_Joint_pos"     joint="hip_L_Joint" noise="0.01"/>
+        <jointpos name="knee_L_Joint_pos"    joint="knee_L_Joint" noise="0.01"/>
+        <jointpos name="wheel_L_Joint_pos"   joint="wheel_L_Joint" noise="0.01"/>
+        <jointpos name="abad_R_Joint_pos"    joint="abad_R_Joint" noise="0.01"/>
+        <jointpos name="hip_R_Joint_pos"     joint="hip_R_Joint" noise="0.01"/>
+        <jointpos name="knee_R_Joint_pos"    joint="knee_R_Joint" noise="0.01"/>
+        <jointpos name="wheel_R_Joint_pos"   joint="wheel_R_Joint" noise="0.01"/>
 
-        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0"/>
-        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0"/>
-        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0"/>
-        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0"/>
-        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0"/>
-        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0"/>
-        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0"/>
-        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0"/>
+        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0.01"/>
+        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0.01"/>
+        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0.01"/>
+        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0.01"/>
+        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0.01"/>
+        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0.01"/>
+        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0.01"/>
+        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0.01"/>
 
-        <jointactuatorfrc name="abad_L_Joint_torque"    joint="abad_L_Joint" noise="0"/>
-        <jointactuatorfrc name="hip_L_Joint_torque"     joint="hip_L_Joint" noise="0"/>
-        <jointactuatorfrc name="knee_L_Joint_torque"    joint="knee_L_Joint" noise="0"/>
-        <jointactuatorfrc name="wheel_L_Joint_torque"   joint="wheel_L_Joint" noise="0"/>
-        <jointactuatorfrc name="abad_R_Joint_torque"    joint="abad_R_Joint" noise="0"/>
-        <jointactuatorfrc name="hip_R_Joint_torque"     joint="hip_R_Joint" noise="0"/>
-        <jointactuatorfrc name="knee_R_Joint_torque"    joint="knee_R_Joint" noise="0"/>
-        <jointactuatorfrc name="wheel_R_Joint_torque"   joint="wheel_R_Joint" noise="0"/>
+        <jointactuatorfrc name="abad_L_Joint_torque"    joint="abad_L_Joint" noise="0.01"/>
+        <jointactuatorfrc name="hip_L_Joint_torque"     joint="hip_L_Joint" noise="0.01"/>
+        <jointactuatorfrc name="knee_L_Joint_torque"    joint="knee_L_Joint" noise="0.01"/>
+        <jointactuatorfrc name="wheel_L_Joint_torque"   joint="wheel_L_Joint" noise="0.01"/>
+        <jointactuatorfrc name="abad_R_Joint_torque"    joint="abad_R_Joint" noise="0.01"/>
+        <jointactuatorfrc name="hip_R_Joint_torque"     joint="hip_R_Joint" noise="0.01"/>
+        <jointactuatorfrc name="knee_R_Joint_torque"    joint="knee_R_Joint" noise="0.01"/>
+        <jointactuatorfrc name="wheel_R_Joint_torque"   joint="wheel_R_Joint" noise="0.01"/>
 
-        <framequat name="imu_quat" objtype="site" objname="imu" noise="0"/>
-        <gyro name="imu_gyro" site="imu" noise="0"/>
-        <accelerometer name="imu_acc" site="imu" noise="0"/>
+        <framequat name="imu_quat" objtype="site" objname="imu" noise="0.01"/>
+        <gyro name="imu_gyro" site="imu" noise="0.01"/>
+        <accelerometer name="imu_acc" site="imu" noise="0.01"/>
 
         <framepos name="frame_pos" objtype="site" objname="imu" />
         <framelinvel name="frame_vel" objtype="site" objname="imu" />
