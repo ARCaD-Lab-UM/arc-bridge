@@ -44,10 +44,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.position[:] = pos_world
         self.low_state.velocity[:] = vel_world
 
-    def parse_robot_specific_low_state(self):
-        if len(self.mj_data.qpos) > 11:
-            self.low_state.q_ob = self.mj_data.qpos[11:11+3]
-            self.low_state.dq_ob = self.mj_data.qvel[11:11+3]
+    # def parse_robot_specific_low_state(self):
+        # if len(self.mj_data.qpos) > 11:
+        #     self.low_state.q_ob = self.mj_data.qpos[11:11+3]
+        #     self.low_state.dq_ob = self.mj_data.qvel[11:11+3]
 
     def lcm_state_handler(self, channel, data):
         if self.mj_data == None:
