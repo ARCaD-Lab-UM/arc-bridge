@@ -1,6 +1,7 @@
-import limxsdk
+# import limxsdk
 
 import lcm
+import pdb
 import time
 
 import numpy as np
@@ -15,7 +16,7 @@ class JointPdController:
     is_running = True
     def __init__(self):
 
-        self.dt = 1/800 # desired controller frequency
+        self.dt = 1/200 # desired controller frequency
  
         # Dimensions
         self.n_ctrl = 8
@@ -26,8 +27,8 @@ class JointPdController:
         self.is_state_received = False
 
         # Gains
-        self.kp = np.array([20.0])
-        self.kd = np.array([1.0])
+        self.kp = np.array([0.0] * self.n_ctrl)
+        self.kd = np.array([2] * self.n_ctrl)
 
     def robot_state_handler(self, channel, data):
         """Handle incoming state updates from LCM."""
@@ -40,12 +41,15 @@ class JointPdController:
         # Flip state received flag
         self.is_state_received = True
 
-    def step(self, des_dof_pos=np.array([0.0]), des_dof_vel=np.array([0.0])):
+    def step(self, des_dof_pos=np.array([0.0]*8), des_dof_vel=np.array([0.0]*8)):
         """Step the controller."""
         # Apply PD Control law
         pos_err = des_dof_pos - self.joint_pos
         vel_err = des_dof_vel - self.joint_vel
         ctrl_torque = self.kp * pos_err + self.kd * vel_err
+
+        # ctrl_torque[[3, 7]] = 0.0  # Disable torque on wheel joints
+        ctrl_torque[[0, 1, 2, 4, 5, 6]] = 0.0  # Disable torque on leg joints
 
         return des_dof_pos, ctrl_torque
 
@@ -59,8 +63,8 @@ if __name__ == "__main__":
     controller = JointPdController()
 
     # Setup LCM protocol
-    lcm_cmd_topic = "tron1_wheeled_control"
-    lcm_state_topic = "tron1_wheeled_state"
+    lcm_cmd_topic = "tron1_wheeled_control".upper()
+    lcm_state_topic = "tron1_wheeled_state".upper()
 
     # LCM Configuration 
     lc = lcm.LCM("udpm://239.255.76.67:7667?ttl=1")
@@ -83,12 +87,14 @@ if __name__ == "__main__":
         # Publish control command
         lc_cmd = tron1_wheeled_control_t()
         lc_cmd.timestamp = time.time_ns()
+
+        # pdb.set_trace()
         lc_cmd.qj_tau = dof_torque.tolist()
         # Enable low-level joint PD control
         lc_cmd.qj_pos = dof_pos.tolist()
-        lc_cmd.qj_vel = [0.0]
-        lc_cmd.kp = controller.kp.tolist()
-        lc_cmd.kd = controller.kd.tolist()
+        lc_cmd.qj_vel = [0.0] * 8
+        # lc_cmd.kp = controller.kp.tolist()
+        # lc_cmd.kd = controller.kd.tolist()
         lc.publish(lcm_cmd_topic, lc_cmd.encode())
 
         # Sleep to maintain loop rate
