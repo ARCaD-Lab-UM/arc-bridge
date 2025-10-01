@@ -1,0 +1,8 @@
+# Ignore everything by default
+*
+
+# Except these files
+!.gitignore
+!readme.txt
+!record_lcm.sh
+!play_lcm.sh
