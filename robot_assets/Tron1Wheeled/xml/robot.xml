@@ -137,14 +137,14 @@
         <jointpos name="knee_R_Joint_pos"    joint="knee_R_Joint" noise="0.01"/>
         <jointpos name="wheel_R_Joint_pos"   joint="wheel_R_Joint" noise="0.01"/>
 
-        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0.01"/>
-        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0.01"/>
-        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0.01"/>
-        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0.01"/>
-        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0.01"/>
-        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0.01"/>
-        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0.01"/>
-        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0.01"/>
+        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0.1"/>
+        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0.1"/>
+        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0.1"/>
+        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0.1"/>
+        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0.1"/>
+        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0.1"/>
+        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0.1"/>
+        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0.1"/>
 
         <jointactuatorfrc name="abad_L_Joint_torque"    joint="abad_L_Joint" noise="0.01"/>
         <jointactuatorfrc name="hip_L_Joint_torque"     joint="hip_L_Joint" noise="0.01"/>
