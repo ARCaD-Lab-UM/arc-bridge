@@ -36,6 +36,19 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         KF_R = np.diag([0.01, 0.01, 0.01, 0.01])
         self.KF = FloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
 
+        # kinematics params
+        self.l1 = 0.077
+        self.l2 = 0.3
+        self.p_abad = np.array([[0.0556, -0.105, 0.2002],
+                    [0.0556,  0.105, 0.2002]]).T # left and right, transposed
+        self.wheel_radius = 0.127
+        self.wheel_y_offset = 0.0435
+
+
+        # contact positions and velocity
+        self.pc_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
+        self.vc_body_frame = np.zeros(6)
+
     def update_state_estimation(self):
         # low state position and velocity in world frame
         if self.use_odemetry:
@@ -119,3 +132,35 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.mj_data.qpos[6] = msg.quaternion[3]
         self.mj_data.qpos[7:7+8] = msg.qj_pos - self.joint_offsets
         self.mj_data.qvel[:] = 0
+
+    def calculate_contact_pos_and_vel(self):
+        for leg_i in range(2):
+            # TODO: check the polarity of knee and hip angle
+            qj_leg = self.low_state.qj_pos[leg_i*4:(leg_i+1)*4]
+            a = 2*self.l2*np.cos(qj_leg[2]/2)
+            p_hip2foot_vec_xz = np.array([a*np.sin(qj_leg[1]+qj_leg[2]/2), 
+                                 -a*np.cos(qj_leg[1]+qj_leg[2]/2)])
+            p_abad2foot_vec_xz = p_hip2foot_vec_xz + np.array([-self.l1, 0])
+            p_abad2foot_vec = np.array([p_abad2foot_vec_xz[0], 0, p_abad2foot_vec_xz[1]])
+            # Rotate the vector around x axis by qj_leg[1] angle
+            Rx = np.array([
+                [1, 0, 0],
+                [0, np.cos(qj_leg[0]), -np.sin(qj_leg[0])],
+                [0, np.sin(qj_leg[0]),  np.cos(qj_leg[0])]
+            ])
+            p_abad2foot_vec = Rx @ p_abad2foot_vec
+            p_foot_body = self.p_abad[:,leg_i] + p_abad2foot_vec
+            pc_body = p_foot_body.copy()
+            if leg_i == 0: # left leg
+                pc_body += np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
+                                             self.wheel_y_offset*np.sin(qj_leg[0])])
+                pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
+                                             -self.wheel_radius*np.cos(qj_leg[0])])
+            else: # right leg
+                pc_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
+                                             self.wheel_y_offset*np.sin(qj_leg[0])])
+                pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
+                                             -self.wheel_radius*np.cos(qj_leg[0])])
+            self.pc_body_frame[leg_i*3:(leg_i+1)*3] = pc_body
+        
+        
