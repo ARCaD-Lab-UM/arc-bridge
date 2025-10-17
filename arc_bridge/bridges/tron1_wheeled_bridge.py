@@ -47,7 +47,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         # contact positions and velocity
         self.pc_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
-        self.vc_body_frame = np.zeros(6)
+        self.vw_body_frame = np.zeros(6)
         self.FK_height = 0
 
     def update_state_estimation(self):
@@ -147,7 +147,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
     def calculate_contact_pos_and_vel(self):
         for leg_i in range(2):
-            # TODO: check the polarity of knee and hip angle
             qj_leg = self.low_state.qj_pos[leg_i*4:(leg_i+1)*4]
             a_length = 2*self.l2*np.cos(qj_leg[2]/2)
             p_hip2foot_vec_xz = np.array([- a_length*np.sin(qj_leg[1]+qj_leg[2]/2), 
@@ -164,6 +163,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             p_abad2foot_vec = Rx @ p_abad2foot_vec
             p_foot_body = self.p_abad[:,leg_i] + p_abad2foot_vec
             pc_body = p_foot_body.copy()
+            # ! Assumption: small pitch angle
             if leg_i == 0: # left leg
                 pc_body += np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
                                              self.wheel_y_offset*np.sin(qj_leg[0])])
@@ -175,7 +175,46 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
                                              -self.wheel_radius*np.cos(qj_leg[0])])
             self.pc_body_frame[leg_i*3:(leg_i+1)*3] = pc_body
+            # TODO: add the wheel rotating part for the contact point velocity (now is only the wheel com velocity)
+            self.vw_body_frame[leg_i*3:(leg_i+1)*3] = self.jacobian_p_foot_body(qj_leg, self.l2) @ np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
             # pdb.set_trace()
-        print(self.pc_body_frame)
+        print(self.vw_body_frame)
         
+
+    def jacobian_p_foot_body(self,qj_leg, l2):
+        """
+        Compute J = d(p_foot_body)/d(q) for a single leg.
+        qj_leg: array-like of length 4 -> [q1, q2, q3, q4] (radians)
+        l1, l2 : link lengths (only l2 appears in this Jacobian)
+        Returns: 3x4 numpy array
+        """
+        qj_leg = np.asarray(qj_leg).reshape(-1)
+        q1, q2, q3, _ = qj_leg  # q4 doesn't affect this Jacobian (column is zeros)
+
+        # helpers from your printout:
+        # #1 == sin(q2 + q3/2), #2 == cos(q2 + q3/2)
+        s = np.sin(q2 + q3/2.0)
+        c = np.cos(q2 + q3/2.0)
+
+        J = np.zeros((3, 4), dtype=float)
+
+        # Row 1
+        J[0, 0] = 0.0
+        J[0, 1] = -l2 * (np.cos(q2 + q3) + np.cos(q2))
+        J[0, 2] = -l2 * np.cos(q2 + q3)
+        J[0, 3] = 0.0
+
+        # Row 2
+        J[1, 0] =  (l2 * c * np.cos(q1)) / 2.0
+        J[1, 1] = -(l2 * s * np.cos(q1)) / 2.0
+        J[1, 2] = -(l2 * np.sin(q1)) / 2.0
+        J[1, 3] = 0.0
+
+        # Row 3
+        J[2, 0] =  (l2 * c * np.sin(q1)) / 2.0
+        J[2, 1] =  (l2 * s * np.sin(q1)) / 2.0
+        J[2, 2] =  (l2 * np.cos(q1)) / 2.0
+        J[2, 3] = 0.0
+
+        return J
         
