@@ -38,7 +38,9 @@
     <keyframe> 
         <!-- torso pos; torso quat; left leg (abad, hip, knee wheel) ; right leg -->
         <!-- initiail pose without the object -->
-        <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" />
+        <!-- <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" /> -->
+        <!-- for lqr starting pos -->
+        <key name="0" qpos="0 0 0.688   1 0 0 0   0 0.5172 -1.0044 0   0 0.5172 -1.0044 0" /> 
         <!-- calibration pose without the object -->
         <key name="1" qpos="0.1 0 0.8   1 0 0 0   0 -0.53 1.09 0   0 -0.53 1.09 0" />
         <!-- calibration pose from the real robot -->
@@ -48,6 +50,7 @@
     </keyframe>
 
     <worldbody>
+        <!-- <geom name="floor" rgba="0.5 0.6 0.7 1" pos="0 0 0" size="0 0 0.25" type="plane" material="matplane" condim="3" euler="0 0.174533 0"/> -->
         <geom name="floor" rgba="0.5 0.6 0.7 1" pos="0 0 0" size="0 0 0.25" type="plane" material="matplane" condim="3"/>
         <camera name="track" mode="trackcom" pos="0 -2.3 1.6" xyaxes="1 0 0 0 0.707 0.707"/>
         <light directional="true" diffuse=".8 .8 .8" pos="0 0 10" dir="0 0 -10"/>
@@ -137,14 +140,14 @@
         <jointpos name="knee_R_Joint_pos"    joint="knee_R_Joint" noise="0.01"/>
         <jointpos name="wheel_R_Joint_pos"   joint="wheel_R_Joint" noise="0.01"/>
 
-        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0.1"/>
-        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0.1"/>
-        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0.1"/>
-        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0.1"/>
-        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0.1"/>
-        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0.1"/>
-        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0.1"/>
-        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0.1"/>
+        <jointvel name="abad_L_Joint_vel"    joint="abad_L_Joint" noise="0.01"/>
+        <jointvel name="hip_L_Joint_vel"     joint="hip_L_Joint" noise="0.01"/>
+        <jointvel name="knee_L_Joint_vel"    joint="knee_L_Joint" noise="0.01"/>
+        <jointvel name="wheel_L_Joint_vel"   joint="wheel_L_Joint" noise="0.01"/>
+        <jointvel name="abad_R_Joint_vel"    joint="abad_R_Joint" noise="0.01"/>
+        <jointvel name="hip_R_Joint_vel"     joint="hip_R_Joint" noise="0.01"/>
+        <jointvel name="knee_R_Joint_vel"    joint="knee_R_Joint" noise="0.01"/>
+        <jointvel name="wheel_R_Joint_vel"   joint="wheel_R_Joint" noise="0.01"/>
 
         <jointactuatorfrc name="abad_L_Joint_torque"    joint="abad_L_Joint" noise="0.01"/>
         <jointactuatorfrc name="hip_L_Joint_torque"     joint="hip_L_Joint" noise="0.01"/>
