@@ -39,8 +39,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # kinematics params
         self.l1 = 0.077
         self.l2 = 0.3
-        self.p_abad = np.array([[0.0556, -0.105, 0.2002],
-                    [0.0556,  0.105, 0.2002]]).T # left and right, transposed
+        self.p_abad = np.array([[0.0556, 0.105, -0.2602],
+                    [0.0556,  -0.105, -0.2602]]).T # left and right, transposed
         self.wheel_radius = 0.127
         self.wheel_y_offset = 0.0435
 
@@ -48,6 +48,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # contact positions and velocity
         self.pc_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
         self.vc_body_frame = np.zeros(6)
+        self.FK_height = 0
 
     def update_state_estimation(self):
         # low state position and velocity in world frame
@@ -77,12 +78,20 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             acc_world = R_body_to_world @ acc_body - np.array([0, 0, 9.81]) # remove gravity
 
             self.KF.predict(u=acc_world)
+
             # use odemetry velocity and height for correction
             meas = np.array([self.ode_msg_position[2], 
                                self.ode_msg_velocity[0], 
                                self.ode_msg_velocity[1], 
                                self.ode_msg_velocity[2]], dtype=float)
             self.KF.correct(meas)
+
+            # use the joint encoder and our FK for correction
+            self.calculate_contact_pos_and_vel()
+            # pdb.set_trace()
+            pz = [0, 0] - R_body_to_world[2, :] @ np.array([self.pc_body_frame[0:3], self.pc_body_frame[3:6]]).T
+            self.FK_height = np.mean(pz)
+
 
             # update state (sending to controller)
             self.low_state.position[:] = self.KF.x[:3]
@@ -122,10 +131,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         self.update_state_estimation()
 
-        # Update mj_data for visualization
-        self.mj_data.qpos[0] = msg.position[0] # self.low_state.position[0]
-        self.mj_data.qpos[1] = msg.position[1] # self.low_state.position[1]
-        self.mj_data.qpos[2] = msg.position[2] # self.low_state.position[2]
+        # Update mj_data for visualization (always the odemetry)
+        # self.mj_data.qpos[0] = msg.position[0] # self.low_state.position[0]
+        # self.mj_data.qpos[1] = msg.position[1] # self.low_state.position[1]
+        # self.mj_data.qpos[2] = msg.position[2] # self.low_state.position[2]
+        self.mj_data.qpos[0] = 0
+        self.mj_data.qpos[1] = 0
+        self.mj_data.qpos[2] = self.FK_height
         self.mj_data.qpos[3] = msg.quaternion[0]
         self.mj_data.qpos[4] = msg.quaternion[1]
         self.mj_data.qpos[5] = msg.quaternion[2]
@@ -137,9 +149,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         for leg_i in range(2):
             # TODO: check the polarity of knee and hip angle
             qj_leg = self.low_state.qj_pos[leg_i*4:(leg_i+1)*4]
-            a = 2*self.l2*np.cos(qj_leg[2]/2)
-            p_hip2foot_vec_xz = np.array([a*np.sin(qj_leg[1]+qj_leg[2]/2), 
-                                 -a*np.cos(qj_leg[1]+qj_leg[2]/2)])
+            a_length = 2*self.l2*np.cos(qj_leg[2]/2)
+            p_hip2foot_vec_xz = np.array([- a_length*np.sin(qj_leg[1]+qj_leg[2]/2), 
+                                 - a_length*np.cos(qj_leg[1]+qj_leg[2]/2)])
+
             p_abad2foot_vec_xz = p_hip2foot_vec_xz + np.array([-self.l1, 0])
             p_abad2foot_vec = np.array([p_abad2foot_vec_xz[0], 0, p_abad2foot_vec_xz[1]])
             # Rotate the vector around x axis by qj_leg[1] angle
@@ -158,9 +171,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                                              -self.wheel_radius*np.cos(qj_leg[0])])
             else: # right leg
                 pc_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
-                                             self.wheel_y_offset*np.sin(qj_leg[0])])
+                                             -self.wheel_y_offset*np.sin(qj_leg[0])])
                 pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
                                              -self.wheel_radius*np.cos(qj_leg[0])])
             self.pc_body_frame[leg_i*3:(leg_i+1)*3] = pc_body
+            # pdb.set_trace()
+        print(self.pc_body_frame)
         
         
