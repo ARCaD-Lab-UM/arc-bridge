@@ -7,11 +7,11 @@ dependencies:
   - pinocchio = 3.8.0
   - scipy = 1.15.3
   - websocket-client = 1.8.0
-  # - numpy = 1.26.4
-  # - glib = 2.84.2
-  - pip # = 25.1
+  - numpy = 2.0.1
+  - glib = 2.84.2
+  - pip = 25.2
   - pip:
     - inputs == 0.5
     - lcm == 1.5.1
-    # - mujoco == 3.3.4
-    # - casadi == 3.7.0
+    - mujoco == 3.3.7
+    - casadi == 3.7.0
