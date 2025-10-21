@@ -110,7 +110,7 @@ class Lcm2MujocoBridge:
 
     def start_gamepad_thread(self):
         try:
-            self.gamepad = Gamepad(2, 0.5, np.pi / 2)
+            self.gamepad = Gamepad(2, 0.5, np.pi)
             self.gamepad_cmd = gamepad_cmd_t()
             self.topic_gamepad = "gamepad_cmd"
             print("=> Gamepad found")
