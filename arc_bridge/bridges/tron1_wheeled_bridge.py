@@ -47,6 +47,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
 
         # contact positions and velocity
+        self.pw_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
         self.pc_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
         self.vw_body_frame = np.zeros(6)
         self.vc_body_frame = np.zeros(6)
@@ -111,9 +112,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # print("FK velocity:", v_torso_mean)
 
             # measurement: [pz, vx, vy, vz]
-            meas = np.array([self.FK_height, v_torso_mean[0], v_torso_mean[1], v_torso_mean[2]], dtype=float)
+            # meas = np.array([self.FK_height, v_torso_mean[0], v_torso_mean[1], v_torso_mean[2]], dtype=float)
             # TODO: correct the sign of vz --> now we have magic negative sign
-            # meas = np.array([self.FK_height, self.low_state.velocity[0], self.low_state.velocity[1], -v_torso_mean[2]], dtype=float)
+            meas = np.array([self.FK_height, self.low_state.velocity[0], self.low_state.velocity[1], -v_torso_mean[2]], dtype=float)
             self.KF.correct(meas)
 
             # ! sending to controller
@@ -169,6 +170,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
     def calculate_contact_pos_and_vel(self):
         for leg_i in range(2):
+            # compute the triangle in leg plane (xz plane)
             qj_leg = self.low_state.qj_pos[leg_i*4:(leg_i+1)*4]
             a_length = 2*self.l2*np.cos(qj_leg[2]/2)
             p_hip2foot_vec_xz = np.array([- a_length*np.sin(qj_leg[1]+qj_leg[2]/2), 
@@ -176,7 +178,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
             p_abad2foot_vec_xz = p_hip2foot_vec_xz + np.array([-self.l1, 0])
             p_abad2foot_vec = np.array([p_abad2foot_vec_xz[0], 0, p_abad2foot_vec_xz[1]])
-            # Rotate the vector around x axis by qj_leg[1] angle
+
+            # Rotate the vector around x axis by abad angle
             Rx = np.array([
                 [1, 0, 0],
                 [0, np.cos(qj_leg[0]), -np.sin(qj_leg[0])],
@@ -184,26 +187,30 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             ])
             p_abad2foot_vec = Rx @ p_abad2foot_vec
             p_foot_body = self.p_abad[:,leg_i] + p_abad2foot_vec
-            pc_body = p_foot_body.copy()
-            # ! Assumption: small pitch angle
+            pw_body = p_foot_body.copy()
+            
+            # Add wheel y offset
             if leg_i == 0: # left leg
-                pc_body += np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
+                pw_body += np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
                                              self.wheel_y_offset*np.sin(qj_leg[0])])
-                pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
-                                             -self.wheel_radius*np.cos(qj_leg[0])])
             else: # right leg
-                pc_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
+                pw_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
                                              -self.wheel_y_offset*np.sin(qj_leg[0])])
-                pc_body += np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
-                                             -self.wheel_radius*np.cos(qj_leg[0])])
+            self.pw_body_frame[leg_i*3:(leg_i+1)*3] = pw_body
+
+            # Compute wheel contact position
+            # ! Assumption: small pitch angle --> the contact point is always the lowest point of the wheel in body frame 
+            pc_body = pw_body + np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
+                                            -self.wheel_radius*np.cos(qj_leg[0])])
             self.pc_body_frame[leg_i*3:(leg_i+1)*3] = pc_body
 
             # Compute wheel contact velocity
-            wheel_com_vel = self.jacobian_p_foot_body(qj_leg, self.l2) @ np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4]);
+            dqj_leg = np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
+            wheel_com_vel = self.jacobian_p_foot_body(qj_leg, self.l2) @ dqj_leg
             self.vw_body_frame[leg_i*3:(leg_i+1)*3] = wheel_com_vel
-            # Add the wheel rotation part
+
+            # Add the wheel rotation  for the contact point velocity
             # ! Assumption: small torso omega
-            dqj_leg = self.low_state.qj_vel[leg_i*4:(leg_i+1)*4]
             wheel_angular_vel_global = np.sum(dqj_leg[1:4]) # q4 is the wheel joint
             abad_angular_vel = dqj_leg[0] # q1 is the ab/ad joint
             vc_body = wheel_com_vel.copy()
@@ -211,9 +218,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             vc_body[1] += abad_angular_vel * self.wheel_radius* np.cos(qj_leg[0])  # y component
             vc_body[2] += abad_angular_vel * self.wheel_radius* np.sin(qj_leg[0])  # z component
             self.vc_body_frame[leg_i*3:(leg_i+1)*3] = vc_body
-            # if self.low_state.position[0] < -0.5:
-            #     pdb.set_trace()
-        # print(self.vw_body_frame)
         
 
     def jacobian_p_foot_body(self,qj_leg, l2):
