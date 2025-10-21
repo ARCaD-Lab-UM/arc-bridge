@@ -47,11 +47,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
 
         # contact positions and velocity
-        self.pw_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
-        self.pc_body_frame = np.zeros(6) # 2 feet, each has (x, y, z)
-        self.vw_body_frame = np.zeros(6)
-        self.vc_body_frame = np.zeros(6)
-        self.FK_height = 0
+        self.normal_terrain = np.array([0, 0, 1]) # flat ground normal
+        self.p_abad2foot_vec_body = np.zeros((3,2)) # 2 legs
+        self.pw_body_frame = np.zeros((3,2)) # 2 feet, each has (x, y, z)
+        self.vw_body_frame = np.zeros((3,2))
 
     def update_state_estimation(self):
         # low state position and velocity in world frame
@@ -78,43 +77,16 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             acc_body = np.array(self.low_state.acceleration, dtype=float)
             # rotate to world frame
             R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
+            # TODO: why minus 9.81?
             acc_world = R_body_to_world @ acc_body - np.array([0, 0, 9.81]) # remove gravity
-
             self.KF.predict(u=acc_world)
 
-            # use odemetry velocity and height for correction
-            # meas = np.array([self.ode_msg_position[2], 
-            #                    self.ode_msg_velocity[0], 
-            #                    self.ode_msg_velocity[1], 
-            #                    self.ode_msg_velocity[2]], dtype=float)
-            # self.KF.correct(meas)
-
-
             # use the joint encoder and our FK for correction
-            self.calculate_contact_pos_and_vel()
-
-            # assuming the contact points are on the ground (pz = 0)
-            pz = [0, 0] - R_body_to_world[2, :] @ np.array([self.pc_body_frame[0:3], self.pc_body_frame[3:6]]).T
-            self.FK_height = np.mean(pz)
-
-            # assume contact points are on the ground -> compute torso linear velocity from contact-point velocity = 0
-            omega_body = np.array(self.low_state.omega, dtype=float)
-            omega_world = R_body_to_world @ omega_body
-            v_torso_estimates = []
-            for leg_i in range(2):
-                vc_b = self.vc_body_frame[leg_i*3:(leg_i+1)*3]
-                vc_world = R_body_to_world @ vc_b
-                v_torso_estimates.append(-vc_world)
-            v_torso_estimates = np.vstack(v_torso_estimates)
-            v_torso_mean = np.mean(v_torso_estimates, axis=0)
-
-            # print("FK height:", self.FK_height)
-            # print("FK velocity:", v_torso_mean)
-
+            self.calculate_wheel_pos_and_vel_body()
+            meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
             # measurement: [pz, vx, vy, vz]
-            # meas = np.array([self.FK_height, v_torso_mean[0], v_torso_mean[1], v_torso_mean[2]], dtype=float)
             # TODO: correct the sign of vz --> now we have magic negative sign
-            meas = np.array([self.FK_height, self.low_state.velocity[0], self.low_state.velocity[1], -v_torso_mean[2]], dtype=float)
+            meas[3] = - meas[3]
             self.KF.correct(meas)
 
             # ! sending to controller
@@ -168,7 +140,49 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.mj_data.qpos[7:7+8] = msg.qj_pos - self.joint_offsets
         self.mj_data.qvel[:] = 0
 
-    def calculate_contact_pos_and_vel(self):
+    def get_torso_height_and_velocity_meas_fk(self, R_body_to_world):
+        # compute the wheel-alighed frame first
+        torso_omega_world = R_body_to_world @ np.array(self.low_state.omega, dtype=float)
+        height_estimates = []
+        velocity_estimates = []
+        for leg_i in range(2):
+            p_abad2foot_vec = R_body_to_world @ self.p_abad2foot_vec_body[:, leg_i]
+            leg_plane = [R_body_to_world[:,0],  # x axis
+                         p_abad2foot_vec]
+            e_y = np.cross(leg_plane[0], leg_plane[1])
+            e_y /= np.linalg.norm(e_y)
+            e_x = np.cross(e_y, self.normal_terrain)
+            e_x /= np.linalg.norm(e_x)
+            e_z = np.cross(e_x, e_y)
+            R_wheel_aligned = np.column_stack((e_x, e_y, e_z)) # rotation from wheel-aligned frame to world frame
+
+            # compute contact point position in world frame
+            p_torso2wheel_vec_world = R_body_to_world @ self.pw_body_frame[:, leg_i]
+            p_torso2contact_vec_world = p_torso2wheel_vec_world - self.wheel_radius * e_z
+            height_estimates.append( - p_torso2contact_vec_world[2])
+
+            '''
+            compute contact point velocity in world frame (three parts) [assume torso linear vel = 0]]
+            1. torso angular
+            2. vw_body_frame (due to the leg kinematics)
+            3. wheel rotation part
+            '''
+            torso_vel_est = - np.cross(torso_omega_world, p_torso2wheel_vec_world)
+            torso_vel_est -= self.vw_body_frame[:, leg_i]
+            dqj_leg = np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
+            wheel_omega_world = torso_omega_world + R_body_to_world[:,0] * dqj_leg[0] + e_y * np.sum(dqj_leg[1:4]) 
+            torso_vel_est -= np.cross(wheel_omega_world, - self.wheel_radius * e_z)
+            velocity_estimates.append(torso_vel_est)
+            # if (self.low_state.position[0] < - 0.2):
+            #     pdb.set_trace()
+        height_estimates = np.array(height_estimates)
+        velocity_estimates = np.vstack(velocity_estimates)
+        height_mean = np.mean(height_estimates)
+        velocity_mean = np.mean(velocity_estimates, axis=0)
+        return np.array([height_mean, velocity_mean[0], velocity_mean[1], velocity_mean[2]], dtype=float)
+
+        
+    def calculate_wheel_pos_and_vel_body(self):
         for leg_i in range(2):
             # compute the triangle in leg plane (xz plane)
             qj_leg = self.low_state.qj_pos[leg_i*4:(leg_i+1)*4]
@@ -186,6 +200,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 [0, np.sin(qj_leg[0]),  np.cos(qj_leg[0])]
             ])
             p_abad2foot_vec = Rx @ p_abad2foot_vec
+            self.p_abad2foot_vec_body[:, leg_i] = p_abad2foot_vec
             p_foot_body = self.p_abad[:,leg_i] + p_abad2foot_vec
             pw_body = p_foot_body.copy()
             
@@ -196,29 +211,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             else: # right leg
                 pw_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
                                              -self.wheel_y_offset*np.sin(qj_leg[0])])
-            self.pw_body_frame[leg_i*3:(leg_i+1)*3] = pw_body
-
-            # Compute wheel contact position
-            # ! Assumption: small pitch angle --> the contact point is always the lowest point of the wheel in body frame 
-            pc_body = pw_body + np.array([0, self.wheel_radius*np.sin(qj_leg[0]), 
-                                            -self.wheel_radius*np.cos(qj_leg[0])])
-            self.pc_body_frame[leg_i*3:(leg_i+1)*3] = pc_body
+            self.pw_body_frame[:, leg_i] = pw_body
 
             # Compute wheel contact velocity
             dqj_leg = np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
             wheel_com_vel = self.jacobian_p_foot_body(qj_leg, self.l2) @ dqj_leg
-            self.vw_body_frame[leg_i*3:(leg_i+1)*3] = wheel_com_vel
+            self.vw_body_frame[:, leg_i] = wheel_com_vel
 
-            # Add the wheel rotation  for the contact point velocity
-            # ! Assumption: small torso omega
-            wheel_angular_vel_global = np.sum(dqj_leg[1:4]) # q4 is the wheel joint
-            abad_angular_vel = dqj_leg[0] # q1 is the ab/ad joint
-            vc_body = wheel_com_vel.copy()
-            vc_body[0] += - wheel_angular_vel_global * self.wheel_radius  # x component
-            vc_body[1] += abad_angular_vel * self.wheel_radius* np.cos(qj_leg[0])  # y component
-            vc_body[2] += abad_angular_vel * self.wheel_radius* np.sin(qj_leg[0])  # z component
-            self.vc_body_frame[leg_i*3:(leg_i+1)*3] = vc_body
-        
 
     def jacobian_p_foot_body(self,qj_leg, l2):
         """
