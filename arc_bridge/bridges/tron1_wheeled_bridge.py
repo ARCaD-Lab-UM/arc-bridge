@@ -30,11 +30,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # State Estimator
         self.send_odemetry = False
         self.height_init = 0.7
-        self.dt_estimator = 0.0005 # 2kHz
+        self.dt_estimator = 0.001 # 1kHz
         # Process noise (px, py, pz, vx, vy, vz)
-        KF_Q = np.diag([0.02, 0.02, 0.02, 0.02, 0.02, 0.02]) 
+        KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
         # Measurement noise (pz, vx, vy, vz)
-        KF_R = np.diag([0.01, 0.01, 0.01, 0.01])
+        KF_R = np.diag([0.01, 0.01, 0.01, 0.01]) 
         self.KF = FloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
 
         # kinematics params
@@ -85,8 +85,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.calculate_wheel_pos_and_vel_body()
             meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
             # measurement: [pz, vx, vy, vz]
-            # TODO: correct the sign of vz --> now we have magic negative sign
-            meas[3] = - meas[3]
             self.KF.correct(meas)
 
             # ! sending to controller
@@ -141,11 +139,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.mj_data.qvel[:] = 0
 
     def get_torso_height_and_velocity_meas_fk(self, R_body_to_world):
-        # compute the wheel-alighed frame first
         torso_omega_world = R_body_to_world @ np.array(self.low_state.omega, dtype=float)
         height_estimates = []
         velocity_estimates = []
         for leg_i in range(2):
+            # compute the wheel-alighed frame first
             p_abad2foot_vec = R_body_to_world @ self.p_abad2foot_vec_body[:, leg_i]
             leg_plane = [R_body_to_world[:,0],  # x axis
                          p_abad2foot_vec]
@@ -173,8 +171,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             wheel_omega_world = torso_omega_world + R_body_to_world[:,0] * dqj_leg[0] + e_y * np.sum(dqj_leg[1:4]) 
             torso_vel_est -= np.cross(wheel_omega_world, - self.wheel_radius * e_z)
             velocity_estimates.append(torso_vel_est)
-            # if (self.low_state.position[0] < - 0.2):
-            #     pdb.set_trace()
         height_estimates = np.array(height_estimates)
         velocity_estimates = np.vstack(velocity_estimates)
         height_mean = np.mean(height_estimates)
@@ -217,7 +213,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             dqj_leg = np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
             wheel_com_vel = self.jacobian_p_foot_body(qj_leg, self.l2) @ dqj_leg
             self.vw_body_frame[:, leg_i] = wheel_com_vel
-
+        # qj_rand = np.array([0.5615, 0.8097, 0.1638, -0.3386])
+        # J_test = self.jacobian_p_foot_body(qj_rand, self.l2)
+        # print(f"J_test:\n{J_test}")
+        # pdb.set_trace()
 
     def jacobian_p_foot_body(self,qj_leg, l2):
         """
@@ -243,15 +242,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         J[0, 3] = 0.0
 
         # Row 2
-        J[1, 0] =  (l2 * c * np.cos(q1)) / 2.0
-        J[1, 1] = -(l2 * s * np.cos(q1)) / 2.0
-        J[1, 2] = -(l2 * np.sin(q1)) / 2.0
+        J[1, 0] = l2* c * np.cos(q3/2.0) * np.cos(q1) * 2
+        J[1, 1] = - l2 * s * np.cos(q3/2.0) * np.sin(q1) * 2
+        J[1, 2] = - l2 * np.sin(q2+q3) * np.sin(q1)
         J[1, 3] = 0.0
 
         # Row 3
-        J[2, 0] =  (l2 * c * np.sin(q1)) / 2.0
-        J[2, 1] =  (l2 * s * np.sin(q1)) / 2.0
-        J[2, 2] =  (l2 * np.cos(q1)) / 2.0
+        J[2, 0] =  l2 * c * np.cos(q3/2.0) * np.sin(q1) * 2
+        J[2, 1] =  l2 * s * np.cos(q3/2.0) * np.cos(q1) * 2
+        J[2, 2] =  l2 * np.sin(q2+q3) * np.cos(q1)
         J[2, 3] = 0.0
 
         return J
