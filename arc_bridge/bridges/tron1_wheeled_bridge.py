@@ -3,7 +3,7 @@ import numpy as np
 import pdb
 # import pinocchio as pin
 
-from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter
+from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t
 from arc_bridge.utils import *
@@ -47,6 +47,14 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.pw_body_frame = np.zeros((3,2)) # 2 feet, each has (x, y, z)
         self.vw_body_frame = np.zeros((3,2))
 
+        # IMU bias online average estimator: acc_body(3),  omega_body(3)
+        self.calibration = False
+        self.imu_bias_average = OnlineAverage(dim=6) 
+        # hardcode gravity bias for the imu
+        self.gravity_add_bias = np.array([0, 0, 9.9945])
+        self.imu_acc_bias_body = np.array([0.0, 0.0, 0.0]) # to be filled after enough data
+        self.omega_bias_body = np.array([0.0, 0.0, 0.0]) # assume zero for gyro bias
+
     def update_state_estimation(self):
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
@@ -54,24 +62,37 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # rotate to world frame
         R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
         # TODO: why minus 9.81?
-        acc_world = R_body_to_world @ acc_body - np.array([0, 0, 9.81]) # remove gravity
-        self.KF.predict(u=acc_world)
+        acc_world = R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
 
-        # use the joint encoder and our FK for correction
-        self.calculate_wheel_pos_and_vel_body()
-        meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
-        # measurement: [pz, vx, vy, vz]
-        self.KF.correct(meas)
+        # store the acc_world and acc_body in the buffer for calibration
+        if not self.calibration:
+            # print(f"acc_world: {acc_world}")
+            acc_body_bias = acc_body - R_body_to_world.T @ self.gravity_add_bias
+            omega_body = np.array(self.low_state.omega, dtype=float)
+            imu_sample = np.hstack((acc_body_bias, omega_body))
+            self.imu_bias_average.update(imu_sample)
+            if self.imu_bias_average._count >= 1e4: # 10k samples for 1kHz ~10s
+                self.calibration = True
+                self.imu_acc_bias_body = self.imu_bias_average._mean[0:3]
+                self.omega_bias_body = self.imu_bias_average._mean[3:6]
+                print(f"IMU calibration done. Acc bias in body frame: {self.imu_acc_bias_body}")
+                print(f"Gyro omega bias in body frame: {self.omega_bias_body}")
+        else:
+            self.KF.predict(u=acc_world)
+            # use the joint encoder and our FK for correction
+            self.calculate_wheel_pos_and_vel_body()
+            meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
+            self.KF.correct(meas)
 
-        # ! sending to controller
-        self.low_state.position[:] = self.KF.x[:3]
-        self.low_state.velocity[:] = self.KF.x[3:]
+            # ! sending to controller
+            self.low_state.position[:] = self.KF.x[:3]
+            self.low_state.velocity[:] = self.KF.x[3:]
 
-        # visualization of the state estimation (red box and blue arrow)
-        self.vis_pos_est = self.KF.x[:3]
-        self.vis_vel_est = self.KF.x[3:]
-        self.vis_R_body = R_body_to_world
-        self.vel_body = R_body_to_world.T @ self.KF.x[3:]
+            # visualization of the state estimation (red box and blue arrow)
+            self.vis_pos_est = self.KF.x[:3]
+            self.vis_vel_est = self.KF.x[3:]
+            self.vis_R_body = R_body_to_world
+            self.vel_body = R_body_to_world.T @ self.KF.x[3:]
 
     
     def parse_robot_specific_low_state(self):
@@ -91,13 +112,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.qj_pos[:] = msg.qj_pos
         self.low_state.qj_vel[:] = msg.qj_vel
         self.low_state.qj_tau[:] = msg.qj_tau
-        self.low_state.acceleration[:] = msg.acceleration
-        self.low_state.omega[:] = msg.omega
+        self.low_state.acceleration[:] = msg.acceleration - self.imu_acc_bias_body
+        self.low_state.omega[:] = msg.omega - self.omega_bias_body
         self.low_state.quaternion[:] = msg.quaternion
         self.low_state.rpy[:] = msg.rpy
 
-        # update the pos and vel with KF output
-        self.update_state_estimation()
         
         # Update mj_data for visualization 
         self.mj_data.qpos[0] = msg.position[0] # robot in the mujoco viewer is vicon pose
