@@ -15,11 +15,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
                                        0, 0.53, -0.55-0.54, 0])
         
-        # sensor from odemetry module in robot onboard computer
-        self.ode_msg_position = np.zeros(3, dtype=float) # [x, y, z] world frame
-        self.ode_msg_velocity = np.zeros(3, dtype=float) # [vx, vy, vz] world frame
-
-        # Visualization (the red box and the blue arrow)
+        # Visualization for the KF output (the red box and the blue arrow)
         self.vis_se = True # override default flag
         self.vis_pos_est = np.array([0, 0, 0.75]) # initial pos (height)
         self.vis_vel_est = np.zeros(3)
@@ -28,7 +24,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vel_body = np.zeros(3) # body velocity in body frame
 
         # State Estimator
-        self.send_odemetry = False
         self.height_init = 0.7
         self.dt_estimator = 0.001 # 1kHz
         # Process noise (px, py, pz, vx, vy, vz)
@@ -53,56 +48,36 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vw_body_frame = np.zeros((3,2))
 
     def update_state_estimation(self):
-        # low state position and velocity in world frame
-        if self.send_odemetry:
-            pos_world = np.array(self.ode_msg_position, dtype=float)
-            vel_world = np.array(self.ode_msg_velocity, dtype=float)
-            R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
+        # use KF to estimate position and velocity
+        # input acceleration in body frame from IMU
+        acc_body = np.array(self.low_state.acceleration, dtype=float)
+        # rotate to world frame
+        R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
+        # TODO: why minus 9.81?
+        acc_world = R_body_to_world @ acc_body - np.array([0, 0, 9.81]) # remove gravity
+        self.KF.predict(u=acc_world)
 
-            # inverse rotation to get body frame velocity
-            v_body = R_body_to_world.T @ vel_world
+        # use the joint encoder and our FK for correction
+        self.calculate_wheel_pos_and_vel_body()
+        meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
+        # measurement: [pz, vx, vy, vz]
+        self.KF.correct(meas)
 
-            # visualization
-            self.vis_pos_est = pos_world
-            self.vis_vel_est = vel_world
-            self.vis_R_body = R_body_to_world
-            self.vel_body = v_body
+        # ! sending to controller
+        self.low_state.position[:] = self.KF.x[:3]
+        self.low_state.velocity[:] = self.KF.x[3:]
 
-            # update state (sending to controller)
-            self.low_state.position[:] = pos_world
-            self.low_state.velocity[:] = vel_world
-        else:
-            # use KF to estimate position and velocity
-            # input acceleration in body frame from IMU
-            acc_body = np.array(self.low_state.acceleration, dtype=float)
-            # rotate to world frame
-            R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
-            # TODO: why minus 9.81?
-            acc_world = R_body_to_world @ acc_body - np.array([0, 0, 9.81]) # remove gravity
-            self.KF.predict(u=acc_world)
-
-            # use the joint encoder and our FK for correction
-            self.calculate_wheel_pos_and_vel_body()
-            meas = self.get_torso_height_and_velocity_meas_fk(R_body_to_world)
-            # measurement: [pz, vx, vy, vz]
-            self.KF.correct(meas)
-
-            # ! sending to controller
-            self.low_state.position[:] = self.KF.x[:3]
-            self.low_state.velocity[:] = self.KF.x[3:]
-
-            # visualization
-            self.vis_pos_est = self.KF.x[:3]
-            self.vis_vel_est = self.KF.x[3:]
-            self.vis_R_body = R_body_to_world
-            self.vel_body = R_body_to_world.T @ self.KF.x[3:]
+        # visualization of the state estimation (red box and blue arrow)
+        self.vis_pos_est = self.KF.x[:3]
+        self.vis_vel_est = self.KF.x[3:]
+        self.vis_R_body = R_body_to_world
+        self.vel_body = R_body_to_world.T @ self.KF.x[3:]
 
     
     def parse_robot_specific_low_state(self):
         # Used in simulation thread (update low_state from mj_data)
         # reload the positions and velocities with KF output
         self.update_state_estimation()
-        pass
         
 
     def lcm_state_handler(self, channel, data):
@@ -111,7 +86,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Get state msg from robot SDK topic
         msg = eval(self.topic_state+"_t").decode(data)
 
-        # Partially update low_state
+        #  update low_state from the msg sent by robot SDK
         self.low_state.qj_pos[:] = (np.array(msg.qj_pos) + self.joint_offsets).tolist() # ! This one needs offsets since it should match with controller's model
         self.low_state.qj_pos[:] = msg.qj_pos
         self.low_state.qj_vel[:] = msg.qj_vel
@@ -121,16 +96,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.quaternion[:] = msg.quaternion
         self.low_state.rpy[:] = msg.rpy
 
-        # prepare for state estimation (receive the odemetry msg)
-        self.ode_msg_position[:] = np.asarray(msg.position, dtype=float)[:3]
-        self.ode_msg_velocity[:] = np.asarray(msg.velocity, dtype=float)[:3]
-
+        # update the pos and vel with KF output
         self.update_state_estimation()
-
-        # Update mj_data for visualization (always the odemetry)
-        self.mj_data.qpos[0] = msg.position[0] # self.low_state.position[0]
-        self.mj_data.qpos[1] = msg.position[1] # self.low_state.position[1]
-        self.mj_data.qpos[2] = msg.position[2] # self.low_state.position[2]
+        
+        # Update mj_data for visualization 
+        self.mj_data.qpos[0] = msg.position[0] # robot in the mujoco viewer is vicon pose
+        self.mj_data.qpos[1] = msg.position[1] # 
+        self.mj_data.qpos[2] = msg.position[2] # 
         self.mj_data.qpos[3] = msg.quaternion[0]
         self.mj_data.qpos[4] = msg.quaternion[1]
         self.mj_data.qpos[5] = msg.quaternion[2]
