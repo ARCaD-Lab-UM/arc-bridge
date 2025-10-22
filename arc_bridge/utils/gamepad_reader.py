@@ -57,6 +57,9 @@ class Gamepad:
         self._estop_flagged = False
         self.is_running = True
 
+        # Extra params to send
+        self.params = [0, 0]
+
         # * Daemon threads stop automatically when the main thread exits
         self.read_thread = threading.Thread(target=self.read_loop, daemon=True)
         self.read_thread.start()
@@ -101,6 +104,20 @@ class Gamepad:
         elif event.ev_type == "Absolute" and event.code == "ABS_RX":
             self.wz = _interpolate(-event.state, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
 
+        elif event.ev_type == "Absolute" and event.code == "ABS_HAT0Y":
+            # D-pad up/down
+            if event.state == -1:
+                self.params[0] += 1  # e.g., increase speed
+            elif event.state == 1:
+                self.params[0] += -1  # e.g., decrease speed
+
+        elif event.ev_type == "Absolute" and event.code == "ABS_HAT0X":
+            # D-pad left/right
+            if event.state == -1:
+                self.params[1] += -1  # e.g., previous gait
+            elif event.state == 1:
+                self.params[1] += 1  # e.g., next gait
+
         if self._estop_flagged and self._lj_pressed:
             self._estop_flagged = False
             print("Estop Released.")
@@ -132,4 +149,5 @@ if __name__ == "__main__":
                 gamepad.vx, gamepad.vy, gamepad.wz, gamepad._estop_flagged
             )
         )
+        print("Params:", gamepad.params)
         time.sleep(0.1)

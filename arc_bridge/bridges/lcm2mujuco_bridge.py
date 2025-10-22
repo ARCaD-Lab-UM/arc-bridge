@@ -195,6 +195,7 @@ class Lcm2MujocoBridge:
         self.gamepad_cmd.vy = cmd[1]
         self.gamepad_cmd.wz = cmd[2]
         self.gamepad_cmd.e_stop = cmd[3]
+        self.gamepad_cmd.params[:] = self.gamepad.params[:] # TODO make a getter
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
 
     def update_motor_cmd(self):
