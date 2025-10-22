@@ -138,7 +138,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             3. wheel rotation part
             '''
             torso_vel_est = - np.cross(torso_omega_world, p_torso2wheel_vec_world)
-            torso_vel_est -= self.vw_body_frame[:, leg_i]
+            torso_vel_est -= R_body_to_world @ self.vw_body_frame[:, leg_i]
             dqj_leg = np.array(self.low_state.qj_vel[leg_i*4:(leg_i+1)*4])
             wheel_omega_world = torso_omega_world + R_body_to_world[:,0] * dqj_leg[0] + e_y * np.sum(dqj_leg[1:4]) 
             torso_vel_est -= np.cross(wheel_omega_world, - self.wheel_radius * e_z)
