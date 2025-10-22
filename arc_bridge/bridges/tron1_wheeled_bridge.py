@@ -20,7 +20,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vis_pos_est = np.array([0, 0, 0.75]) # initial pos (height)
         self.vis_vel_est = np.zeros(3)
         self.vis_R_body = np.eye(3)
-        self.vis_box_size = [0.1, 0.1, 0.08]
+        self.vis_box_size = [0.1, 0.2, 0.08]
         self.vel_body = np.zeros(3) # body velocity in body frame
 
         # State Estimator
@@ -63,8 +63,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
         acc_body = np.array(self.low_state.acceleration, dtype=float)
+
         # rotate to world frame
-        R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
+        # --> the quaternion is from vicon (ground truth)
+        # R_body_to_world = quat_to_rot(Quaternion(*self.low_state.quaternion))
+
+        # --> the rpy is from IMU (integration from omega) []
+        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
+        R_body_to_world = quat_to_rot(quat_from_imu)
+
         # TODO: why minus 9.81?
         acc_world = R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
 
