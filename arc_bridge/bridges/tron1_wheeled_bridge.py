@@ -55,6 +55,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.imu_acc_bias_body = np.array([0.0, 0.0, 0.0]) # to be filled after enough data
         self.omega_bias_body = np.array([0.0, 0.0, 0.0]) # assume zero for gyro bias
 
+    def remove_calibration_bias(self):
+        self.calibration = True
+        self.gravity_add_bias = np.array([0, 0, 9.81])
+
     def update_state_estimation(self):
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU

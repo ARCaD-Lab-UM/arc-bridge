@@ -110,6 +110,8 @@ def main():
         bridge.register_low_cmd_subscriber(bridge.topic_cmd) # .upper())
     else:
         bridge.register_low_cmd_subscriber(bridge.topic_cmd)
+        if bridge_name == "Tron1WheeledBridge":
+            bridge.remove_calibration_bias()
 
     # Handle SIGINT to exit gracefully
     signal.signal(signal.SIGINT, signal_handler)
