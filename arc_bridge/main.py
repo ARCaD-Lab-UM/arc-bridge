@@ -32,7 +32,7 @@ def simulate_mujoco():
                 bridge.low_cmd_received = False
             else:
                 # Publish to topic_state.upper() for real robot
-                bridge.publish_low_state(bridge.topic_state, skip_common_state=True) # bridge.topic_state.upper()
+                bridge.publish_low_state(bridge.topic_state.upper(), skip_common_state=True) # need bridge.topic_state.upper()
 
         # Wait to sync wall clock with simulation time
         next_time += mj_model.opt.timestep
@@ -105,9 +105,9 @@ def main():
 
     if args.replay:
         # Subscribe to topic_state from real robot to parse common states
-        bridge.register_low_state_subscriber(bridge.topic_state.upper()) # no .upper()
+        bridge.register_low_state_subscriber(bridge.topic_state) # no upper()
         # Subscribe to topic_cmd.upper() from upper level controller to prevent wrong command sources
-        bridge.register_low_cmd_subscriber(bridge.topic_cmd) # .upper())
+        bridge.register_low_cmd_subscriber(bridge.topic_cmd.upper()) # need upper()
     else:
         bridge.register_low_cmd_subscriber(bridge.topic_cmd)
         if bridge_name == "Tron1WheeledBridge":
