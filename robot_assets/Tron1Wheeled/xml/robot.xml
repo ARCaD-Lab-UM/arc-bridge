@@ -38,9 +38,9 @@
     <keyframe> 
         <!-- torso pos; torso quat; left leg (abad, hip, knee wheel) ; right leg -->
         <!-- initiail pose without the object -->
-        <!-- <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" /> -->
+        <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0" />
         <!-- for lqr starting pos -->
-        <key name="0" qpos="0 0 0.688   1 0 0 0   0 0.5172 -1.0044 0   0 0.5172 -1.0044 0" /> 
+        <!-- <key name="0" qpos="0 0 0.688   1 0 0 0   0 0.5172 -1.0044 0   0 0.5172 -1.0044 0" />  -->
         <!-- calibration pose without the object -->
         <key name="1" qpos="0.1 0 0.8   1 0 0 0   0 -0.53 1.09 0   0 -0.53 1.09 0" />
         <!-- calibration pose from the real robot -->

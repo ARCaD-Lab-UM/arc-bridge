@@ -72,7 +72,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
         R_body_to_world = quat_to_rot(quat_from_imu)
 
-        # TODO: why minus 9.81?
         acc_world = R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
 
         # store the acc_world and acc_body in the buffer for calibration
@@ -203,12 +202,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             pw_body = p_foot_body.copy()
             
             # Add wheel y offset
-            if leg_i == 0: # left leg
-                pw_body += np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
+            pw_body +=  (-1)**leg_i * np.array([0, self.wheel_y_offset*np.cos(qj_leg[0]), 
                                              self.wheel_y_offset*np.sin(qj_leg[0])])
-            else: # right leg
-                pw_body += np.array([0, -self.wheel_y_offset*np.cos(qj_leg[0]), 
-                                             -self.wheel_y_offset*np.sin(qj_leg[0])])
             self.pw_body_frame[:, leg_i] = pw_body
 
             # Compute wheel contact velocity
@@ -256,4 +251,30 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         J[2, 3] = 0.0
 
         return J
+    
+    def ik_analy (self, p_wheel_com_body):
+        """
+        Inverse kinematics
+        p_wheel_com_body: [3x2] array-like -> [[x_left, x_right], [y_left, y_right], [z_left, z_right]]
+        Returns: [4x2] -> [q1, q2, q3, q4] (radians)
+        """
+        qj_legs_ik = np.zeros((4,2))
+        for leg_i in range(2):
+            p_wheel_com_b = p_wheel_com_body[:, leg_i]
+            x, y, z = p_wheel_com_b - self.p_abad[:, leg_i]
+            # compute the q_abad first
+            len_abad2foot_yz_proj = np.sqrt(y^2 + z^2 - self.wheel_y_offset^2)
+            q_abad = np.arctan2(y,-z) - (-1)^leg_i * np.arctan2(self.wheel_y_offset, len_abad2foot_yz_proj)
+
+            # with the len_abad2foot, compute the hip and knee
+            len_hip2foot_yz_proj = len_abad2foot_yz_proj.copy()
+            len_hip2foot = np.sqrt((x+self.l1)^2 + len_hip2foot_yz_proj^2)
+            q_knee = -2 * np.arccos(len_hip2foot / (2*self.l2))
+            q_hip = np.arcsin(-x-self.l1, len_hip2foot) + (-q_knee)/2
+
+            q_wheel = 0.0 # assume zero for now
+
+            qj_legs_ik[:, leg_i] = np.array([q_abad, q_hip, q_knee, q_wheel])
+
+        return qj_legs_ik
         
