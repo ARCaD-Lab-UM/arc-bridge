@@ -60,8 +60,8 @@ def main():
     parser.add_argument("--debug", action="store_true", help="debug mode")
     parser.add_argument("--busywait", action="store_true", help="busywait in simulation thread")
     parser.add_argument("--use_gamepad", action="store_true", help="use gamepad to control the robot")
-    parser.add_argument("--control-delay", type=float, default=0.0, help="control delay in seconds before commands are applied")
-    parser.add_argument("--sensor-delay", type=float, default=0.0, help="sensor delay in seconds before states are published")
+    parser.add_argument("--control_delay", type=float, default=0.0, help="control delay in seconds before commands are applied")
+    parser.add_argument("--sensor_delay", type=float, default=0.0, help="sensor delay in seconds before states are published")
     args = parser.parse_args()
 
     # Select robot type
