@@ -104,6 +104,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
     def parse_robot_specific_low_state(self):
         # Used in simulation thread (update low_state from mj_data)
         # reload the positions and velocities with KF output
+        
+        # update the R_torso_global (based on IMU rpy)
+        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
+        self.R_torso_global = quat_to_rot(quat_from_imu)
+
         self.update_state_estimation()
         
 
