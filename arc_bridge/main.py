@@ -60,6 +60,8 @@ def main():
     parser.add_argument("--debug", action="store_true", help="debug mode")
     parser.add_argument("--busywait", action="store_true", help="busywait in simulation thread")
     parser.add_argument("--use_gamepad", action="store_true", help="use gamepad to control the robot")
+    parser.add_argument("--control-delay", type=float, default=0.0, help="control delay in seconds before commands are applied")
+    parser.add_argument("--sensor-delay", type=float, default=0.0, help="sensor delay in seconds before states are published")
     args = parser.parse_args()
 
     # Select robot type
@@ -69,7 +71,11 @@ def main():
     robot_type_idx = int(input("Please select the robot type: "))
     robot_type = Config.valid_robot_types[robot_type_idx]
 
-    robot_config = Config(robot_type)
+    robot_config = Config(
+        robot_type,
+        control_delay=args.control_delay,
+        sensor_delay=args.sensor_delay,
+    )
 
     # Initialize Mujoco
     mj_model = mujoco.MjModel.from_xml_path(robot_config.robot_xml_path)

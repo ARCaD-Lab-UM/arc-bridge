@@ -1,7 +1,10 @@
+import copy
 import lcm
 import time
 import mujoco
 import numpy as np
+
+from collections import deque
 
 from threading import Thread
 from abc import abstractmethod
@@ -56,6 +59,18 @@ class Lcm2MujocoBridge:
         self.low_state = self.low_state_type()
         self.low_cmd_type = eval(self.topic_cmd + "_t")
         self.low_cmd = self.low_cmd_type()
+        self.control_delay = max(config.control_delay, 0.0)
+        self.sensor_delay = max(config.sensor_delay, 0.0)
+        self.control_delay_steps = int(round(self.control_delay / self.dt)) if self.dt > 0 else 0
+        self.sensor_delay_steps = int(round(self.sensor_delay / self.dt)) if self.dt > 0 else 0
+        self._control_buffer = self._init_delay_buffer(self.low_cmd, self.control_delay_steps)
+        self._sensor_buffer = self._init_delay_buffer(self.low_state, self.sensor_delay_steps)
+        self._most_recent_low_cmd = self.low_cmd
+        self._most_recent_low_state = self.low_state
+        if self.control_delay_steps:
+            print(f"=> control delay: {self.control_delay_steps} steps ({self.control_delay:.6f}s)")
+        if self.sensor_delay_steps:
+            print(f"=> sensor delay: {self.sensor_delay_steps} steps ({self.sensor_delay:.6f}s)")
         self.lcm_handle_thread = None
 
         self.low_cmd_received = False
@@ -69,6 +84,26 @@ class Lcm2MujocoBridge:
 
         # State estimator visualization
         self.vis_se = False
+
+    def _init_delay_buffer(self, source, delay_steps):
+        length = max(delay_steps + 1, 1)
+        return deque([copy.deepcopy(source) for _ in range(length)], maxlen=length)
+
+    def _clone_low_cmd(self, source):
+        return copy.deepcopy(source)
+
+    def _clone_low_state(self, source):
+        return copy.deepcopy(source)
+
+    def _compute_delayed_low_cmd(self):
+        if self.control_delay_steps > 0:
+            self._control_buffer.append(self._clone_low_cmd(self.low_cmd))
+            cmd_to_return = self._control_buffer[0]
+        else:
+            cmd_to_return = self.low_cmd
+        
+        self._most_recent_low_cmd = cmd_to_return
+        return cmd_to_return
 
     def lcm_cmd_handler(self, channel, data):
         if self.mj_data is None:
@@ -183,7 +218,15 @@ class Lcm2MujocoBridge:
 
         # Encode and publish robot states
         self.low_state.timestamp = time.time_ns()
-        self.lc.publish(topic, self.low_state.encode())
+        if self.sensor_delay_steps > 0:
+            current_state = self._clone_low_state(self.low_state)
+            self._sensor_buffer.append(current_state)
+            state_to_publish = self._sensor_buffer[0]
+        else:
+            state_to_publish = self.low_state
+
+        self._most_recent_low_state = state_to_publish
+        self.lc.publish(topic, state_to_publish.encode())
 
     def publish_gamepad_cmd(self):
         if self.gamepad is None:
@@ -199,11 +242,12 @@ class Lcm2MujocoBridge:
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
 
     def update_motor_cmd(self):
+        cmd = self._compute_delayed_low_cmd()
         for i in range(self.num_motor):
             motor_torque_limits = self.mj_model.actuator_ctrlrange[i]
-            motor_torque = self.low_cmd.qj_tau[i] +\
-                           self.low_cmd.kp[i] * (self.low_cmd.qj_pos[i] - self.low_state.qj_pos[i]) +\
-                           self.low_cmd.kd[i] * (self.low_cmd.qj_vel[i] - self.low_state.qj_vel[i])
+            motor_torque = cmd.qj_tau[i] +\
+                           cmd.kp[i] * (cmd.qj_pos[i] - self.low_state.qj_pos[i]) +\
+                           cmd.kd[i] * (cmd.qj_vel[i] - self.low_state.qj_vel[i])
             self.mj_data.ctrl[i] = np.clip(motor_torque, motor_torque_limits[0], motor_torque_limits[1])
 
     def print_scene_info(self):

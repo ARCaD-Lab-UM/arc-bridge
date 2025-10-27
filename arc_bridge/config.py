@@ -25,7 +25,7 @@ class Config:
     }
     valid_robot_types = list(robot_path_dict.keys())
 
-    def __init__(self, robot_type):
+    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0):
 
         self.robot_type = robot_type
         if self.robot_type not in self.valid_robot_types:
@@ -35,3 +35,8 @@ class Config:
         self.robot_cmd_topic = self.robot_type + "_control"
 
         self.robot_xml_path = str(self.asset_root / self.robot_path_dict[self.robot_type])
+
+        if control_delay < 0 or sensor_delay < 0:
+            raise ValueError("control_delay and sensor_delay must be non-negative")
+        self.control_delay = float(control_delay) # default 0.0
+        self.sensor_delay = float(sensor_delay)
