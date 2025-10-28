@@ -1,0 +1,13 @@
+package lcm_msgs;
+
+struct tron1_wheeled_plan_t
+{
+    int64_t  timestamp;
+
+    double   qj_tau_ff[8];
+
+    double   qd_trb[14];
+    double   dqd_trb[14];
+
+    double   lambda_des[6];
+}
