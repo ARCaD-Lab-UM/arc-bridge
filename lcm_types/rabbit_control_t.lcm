@@ -1,0 +1,14 @@
+package lcm_msgs;
+
+struct rabbit_control_t
+{
+    int64_t timestamp;
+
+    double qj_tau[4];
+
+    double qj_pos[4];
+    double qj_vel[4];
+
+    double kp[4];
+    double kd[4];
+}
