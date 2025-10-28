@@ -9,4 +9,6 @@ struct gamepad_cmd_t
     double   wz;
 
     boolean  e_stop;
+
+    int8_t   params[2]; // D-Pad values
 }
