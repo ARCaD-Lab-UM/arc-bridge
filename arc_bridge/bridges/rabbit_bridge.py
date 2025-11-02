@@ -17,7 +17,7 @@ class RabbitBridge(Lcm2MujocoBridge):
         self.vis_pos_est = np.array([0, 0, 1])
         self.vis_vel_est = np.zeros(3)
         self.vis_R_body = np.eye(3)
-        self.vis_box_size = [0.04, 0.04, 0.2]
+        self.vis_box_size = [0.05, 0.05, 0.1]
 
         self.dt_se = 0.001
         self.height_init = 1.0
