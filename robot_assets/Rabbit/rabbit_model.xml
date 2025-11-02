@@ -5,43 +5,71 @@
         <default class="rabbit">
             <geom type="capsule"/>
         </default>
+        <motor ctrlrange="-100 100"/>
+        <joint armature="0.001" damping="0.001"/>
         <default class="virtual_joint">
             <joint damping="0" armature="0" frictionloss="0"/>
         </default>
     </default>
 
     <keyframe>
-        <key name="0" qpos="0 0 0 0 0 0 0" />
+        <key name="0" qpos="0 0 0 -0.2 0.1 0.1 0.1" />
     </keyframe>
 
     <worldbody>
-        <body name="base" pos="0 0 1">
+        <body name="base" pos="0 0 1.0">
             <joint name="x_joint" type="slide" axis="1 0 0" range="-100 100" class="virtual_joint"/>
             <joint name="z_joint" type="slide" axis="0 0 1" range="-100 100" class="virtual_joint"/>
             <joint name="pitch_joint" type="hinge" axis="0 1 0" class="virtual_joint"/>
             <site name="imu" pos="0 0 0"/>
             
             <body name="torso">
-                <inertial pos="0 0 0" mass="5" diaginertia="0.01 0.01 0.001"/>
-                <geom name="torso_geom" type="box" size="0.04 0.04 0.2" rgba="1 1 0 1"/>
+                <inertial 
+                    pos="0 0 0" 
+                    mass="10" 
+                    diaginertia="0.01 0.01 0.001"
+                />
+                <geom name="torso_geom" type="box" size="0.04 0.04 0.2" density="0" rgba="1 1 0 1"/>
 
                 <!-- right leg -->
                 <body name="right_hip" pos="0 -0.03 -0.2">
+                    <inertial 
+                        pos="0 0 -0.2" 
+                        mass="1" 
+                        diaginertia="0.005 0.005 0.001"
+                    />
                     <joint name="right_hip_ry" type="hinge" axis="0 1 0" range="-2 2"/>
-                    <geom name="right_thigh_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 0 1 1"/>
+                    <geom name="right_thigh_geom" type="capsule" density="0" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 0 1 1"/>
                     <body name="right_knee" pos="0 0 -0.4">
+                        <inertial 
+                            pos="0 0 -0.2" 
+                            mass="0.5" 
+                            diaginertia="0.005 0.005 0.001"
+                        />
                         <joint name="right_knee_ry" type="hinge" axis="0 1 0" range="0 3"/>
-                        <geom name="right_shin_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 1 0 1"/>
+                        <geom name="right_shin_geom" type="capsule" density="0" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 1 0 1"/>
+                        <site name="right_foot" type="sphere" pos="0 0 -0.4" size="0.03" rgba="1 0 0 1"/>
                     </body>
                 </body>
 
                 <!-- left leg -->
                 <body name="left_hip" pos="0 0.03 -0.2">
+                    <inertial 
+                        pos="0 0 -0.2" 
+                        mass="1" 
+                        diaginertia="0.005 0.005 0.001"
+                    />
                     <joint name="left_hip_ry" type="hinge" axis="0 1 0" range="-2 2"/>
-                    <geom name="left_thigh_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 0 1 1"/>
+                    <geom name="left_thigh_geom" type="capsule" density="0" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 0 1 1"/>
                     <body name="left_knee" pos="0 0 -0.4">
+                        <inertial 
+                            pos="0 0 -0.2" 
+                            mass="0.5" 
+                            diaginertia="0.005 0.005 0.001"
+                        />
                         <joint name="left_knee_ry" type="hinge" axis="0 1 0" range="0 3"/>
-                        <geom name="left_shin_geom" type="capsule" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 1 0 1"/>
+                        <geom name="left_shin_geom" type="capsule" density="0" fromto="0 0 0 0 0 -0.4" size="0.02" rgba="0 1 0 1"/>
+                        <site name="left_foot" type="sphere" pos="0 0 -0.4" size="0.03" rgba="1 0 0 1"/>
                     </body>
                 </body>
             </body>
@@ -49,10 +77,10 @@
     </worldbody>
 
     <actuator>
-        <motor name = "right_hip_ry_motor" joint="right_hip_ry"/>
-        <motor name = "right_knee_ry_motor" joint="right_knee_ry"/>
-        <motor name = "left_hip_ry_motor" joint="left_hip_ry"/>
-        <motor name = "left_knee_ry_motor" joint="left_knee_ry"/>
+        <motor name = "right_hip_ry_motor" class="rabbit" joint="right_hip_ry"/>
+        <motor name = "right_knee_ry_motor" class="rabbit" joint="right_knee_ry"/>
+        <motor name = "left_hip_ry_motor" class="rabbit" joint="left_hip_ry"/>
+        <motor name = "left_knee_ry_motor" class="rabbit" joint="left_knee_ry"/>
     </actuator>
 
     <sensor>
@@ -77,5 +105,8 @@
 
         <framepos name="frame_pos" objtype="site" objname="imu" />
         <framelinvel name="frame_vel" objtype="site" objname="imu" />
+
+        <touch name="foot_force_R" site="right_foot"/>
+        <touch name="foot_force_L" site="left_foot"/>
     </sensor>
 </mujoco>

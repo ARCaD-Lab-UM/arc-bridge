@@ -15,6 +15,15 @@ struct rabbit_state_t
     double qj_vel[4];
     double qj_tau[4];
 
+    double foot_force[2];
+
     double inertia_mat[7][7];
     double bias_force[7];
+
+    double pf[6];
+    double Jf[6][7];
+    double dJfdq[6];
+
+    double Jtor[6][7];
+    double dJtordq[6];
 }

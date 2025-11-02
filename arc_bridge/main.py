@@ -151,7 +151,7 @@ def main():
                 mujoco.mjtGeom.mjGEOM_ARROW, 
                 0.02,
                 bridge.vis_pos_est, 
-                bridge.vis_pos_est + bridge.vis_vel_est*0.5)
+                bridge.vis_pos_est + bridge.vis_vel_est*1)
             viewer.user_scn.ngeom = 2
 
         with viewer.lock():

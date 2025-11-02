@@ -11,4 +11,8 @@ struct rabbit_control_t
 
     double kp[4];
     double kd[4];
+
+    double se_pos[3];
+    double se_vel[3];
+    double EA[3];
 }
