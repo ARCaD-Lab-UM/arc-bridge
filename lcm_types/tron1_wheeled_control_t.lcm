@@ -19,4 +19,7 @@ struct tron1_wheeled_control_t
     double u_wrench[8];
 
     int64_t cost;
+
+    double   pw_body_cur[6];
+    double   pw_body_next[6];
 }
