@@ -28,8 +28,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.dt_estimator = 0.001 # 1kHz
         # Process noise (px, py, pz, vx, vy, vz)
         KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
-        # Measurement noise (pz, vx, vy, vz)
-        KF_R = np.diag([0.01, 0.01, 0.01, 0.01]) 
+        # Measurement noise (px, py, pz, vx, vy, vz)
+        KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
         self.KF = FloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
 
         # kinematics params
@@ -106,8 +106,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # reload the positions and velocities with KF output
         
         # update the R_torso_global (based on IMU rpy)
-        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
-        self.R_torso_global = quat_to_rot(quat_from_imu)
+        self.R_torso_global = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
         self.update_state_estimation()
         
@@ -127,6 +126,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.omega[:] = msg.omega - self.omega_bias_body
         self.low_state.quaternion[:] = msg.quaternion
         self.low_state.rpy[:] = msg.rpy
+        self.low_state.position[:] = msg.position
 
         # update the R_torso_global (based on IMU rpy)
         quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
@@ -186,7 +186,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         velocity_estimates = np.vstack(velocity_estimates)
         height_mean = np.mean(height_estimates)
         velocity_mean = np.mean(velocity_estimates, axis=0)
-        return np.array([height_mean, velocity_mean[0], velocity_mean[1], velocity_mean[2]], dtype=float)
+        vicon_pos = np.array(self.low_state.position, dtype=float)
+        return np.array([vicon_pos[0], vicon_pos[1], vicon_pos[2], velocity_mean[0], velocity_mean[1], velocity_mean[2]], dtype=float)
 
         
     def calculate_wheel_pos_and_vel_body(self):
