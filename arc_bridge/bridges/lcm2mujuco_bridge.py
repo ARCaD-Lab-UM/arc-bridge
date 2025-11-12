@@ -145,7 +145,7 @@ class Lcm2MujocoBridge:
 
     def start_gamepad_thread(self):
         try:
-            self.gamepad = Gamepad(dev_name_keywords=["wireless"], vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=np.pi, scale_pitch=np.pi/2.0, triggers_scale=1.0)
+            self.gamepad = Gamepad(vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=np.pi, scale_pitch=np.pi/2.0, triggers_scale=1.0)
             self.gamepad_cmd = gamepad_cmd_t()
             self.topic_gamepad = "gamepad_cmd"
             print("=> Gamepad found")

@@ -38,14 +38,33 @@ def _center_axis(raw_value: int) -> int:
     return centered
 
 
-def _find_device(keywords: list[str]) -> evdev.InputDevice:
+def _is_gamepad(device: evdev.InputDevice) -> bool:
+    """Return True when the device exposes standard gamepad buttons."""
+    key_codes = device.capabilities().get(ecodes.EV_KEY, [])
+    gamepad_buttons = (
+        ecodes.BTN_SOUTH,
+        ecodes.BTN_EAST,
+        ecodes.BTN_NORTH,
+        ecodes.BTN_WEST,
+        ecodes.BTN_TL,
+        ecodes.BTN_TR,
+    )
+    return any(btn in key_codes for btn in gamepad_buttons)
+
+
+def _find_device(keywords: Optional[list[str]]) -> evdev.InputDevice:
     """Locate the gamepad by name."""
     for path in evdev.list_devices():
         device = evdev.InputDevice(path)
         # print(f"Found device: {device.name}")
-        if any(keyword.lower() in device.name.lower() for keyword in keywords):
+        if keywords is None:
+            if _is_gamepad(device):
+                return device
+        elif any(keyword.lower() in device.name.lower() for keyword in keywords):
             return device
         device.close()
+    if keywords is None:
+        raise UnpluggedError("No gamepad found.")
     raise UnpluggedError(f"No gamepad matching keywords {keywords} found.")
 
 
@@ -64,8 +83,9 @@ class Gamepad:
         self.device: Optional[evdev.InputDevice] = None
         self._grabbed = False
         if dev_name_keywords is None:
-            dev_name_keywords = []  # not case sensitive
-        self._dev_name_keywords = list(dev_name_keywords) + DEVICE_NAMES # default names are always included
+            self._dev_name_keywords = None
+        else:
+            self._dev_name_keywords = list(dev_name_keywords)
         self._vel_scale_x = float(vel_scale_x)
         self._vel_scale_y = float(vel_scale_y)
         self._vel_scale_rot = float(vel_scale_rot)
@@ -154,7 +174,7 @@ class Gamepad:
                 self.wz = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
             elif event.code == ecodes.ABS_RZ: # vertical movement
                 centered = _center_axis(event.value)
-                self.pitch = _interpolate(centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
+                self.pitch = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
             elif event.code == ecodes.ABS_BRAKE:
                 self.lt = self._scale_trigger_value(event.value)
             elif event.code == ecodes.ABS_GAS:
@@ -248,6 +268,7 @@ class Gamepad:
 
 
 if __name__ == "__main__":
+    # gamepad = Gamepad(dev_name_keywords=DEVICE_NAMES, vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=3.141592654, scale_pitch=1.570796327, triggers_scale=1.0)
     gamepad = Gamepad(vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=3.141592654, scale_pitch=1.570796327, triggers_scale=1.0)
     while True:
         print(

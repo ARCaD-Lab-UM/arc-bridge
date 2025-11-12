@@ -139,7 +139,7 @@ class Gamepad:
             self.wz = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
 
         elif event.ev_type == "Absolute" and event.code == "ABS_RY":
-            self.pitch = _interpolate(event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
+            self.pitch = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
 
         elif event.ev_type == "Absolute" and event.code == "ABS_Z":
             self.lt = self._scale_trigger_value(event.state)
