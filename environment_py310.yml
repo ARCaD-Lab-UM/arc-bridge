@@ -15,3 +15,4 @@ dependencies:
     - lcm == 1.5.1
     - mujoco == 3.3.7
     - casadi == 3.7.0
+    - evdev == 1.9.2
