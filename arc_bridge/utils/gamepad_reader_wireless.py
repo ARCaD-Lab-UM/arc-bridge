@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover - inputs is available in runtime env
 MAX_ABS_VAL = 32768
 JOYSTICK_DEAD_ZONE = 4000
 TRIGGER_DEAD_ZONE = 10
-DEVICE_NAME = "Xbox Wireless Controller"
+DEVICE_NAMES = ["Xbox Wireless Controller"]
 TRIGGER_MAX = 1023
 INT8_MIN = -128
 INT8_MAX = 127
@@ -46,7 +46,7 @@ def _find_device(keywords: list[str]) -> evdev.InputDevice:
         if any(keyword.lower() in device.name.lower() for keyword in keywords):
             return device
         device.close()
-    raise UnpluggedError(f"No gamepad matching keywords {keywords}, or named '{DEVICE_NAME}' found.")
+    raise UnpluggedError(f"No gamepad matching keywords {keywords} found.")
 
 
 class Gamepad:
@@ -65,7 +65,7 @@ class Gamepad:
         self._grabbed = False
         if dev_name_keywords is None:
             dev_name_keywords = []  # not case sensitive
-        self._dev_name_keywords = dev_name_keywords + [DEVICE_NAME] # default name is always included
+        self._dev_name_keywords = list(dev_name_keywords) + DEVICE_NAMES # default names are always included
         self._vel_scale_x = float(vel_scale_x)
         self._vel_scale_y = float(vel_scale_y)
         self._vel_scale_rot = float(vel_scale_rot)
