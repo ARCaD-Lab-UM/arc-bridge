@@ -145,7 +145,7 @@ class Lcm2MujocoBridge:
 
     def start_gamepad_thread(self):
         try:
-            self.gamepad = Gamepad(2, 0.5, np.pi)
+            self.gamepad = Gamepad(dev_name_keywords=["wireless"], vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=np.pi, scale_pitch=np.pi/2.0, triggers_scale=1.0)
             self.gamepad_cmd = gamepad_cmd_t()
             self.topic_gamepad = "gamepad_cmd"
             print("=> Gamepad found")
@@ -233,12 +233,31 @@ class Lcm2MujocoBridge:
             return
 
         cmd = self.gamepad.get_command()
+        pitch = self.gamepad.get_pitch()
+        params = self.gamepad.get_params()
+        buttons = self.gamepad.get_buttons()
+        lbrb = self.gamepad.get_lbrb()
+        ljrj = self.gamepad.get_ljrj()
+        lt, rt = self.gamepad.get_triggers()
+
         self.gamepad_cmd.timestamp = time.time_ns()
         self.gamepad_cmd.vx = cmd[0]
         self.gamepad_cmd.vy = cmd[1]
         self.gamepad_cmd.wz = cmd[2]
         self.gamepad_cmd.e_stop = cmd[3]
-        self.gamepad_cmd.params[:] = self.gamepad.params[:] # TODO make a getter
+        self.gamepad_cmd.pitch = pitch
+        self.gamepad_cmd.params[:] = params[:]
+        self.gamepad_cmd.btn_up = buttons[0]
+        self.gamepad_cmd.btn_left = buttons[1]
+        self.gamepad_cmd.btn_down = buttons[2]
+        self.gamepad_cmd.btn_right = buttons[3]
+        self.gamepad_cmd.btn_lb = lbrb[0]
+        self.gamepad_cmd.btn_rb = lbrb[1]
+        self.gamepad_cmd.btn_lstick = ljrj[0]
+        self.gamepad_cmd.btn_rstick = ljrj[1]
+        self.gamepad_cmd.lt = lt
+        self.gamepad_cmd.rt = rt
+
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
 
     def update_motor_cmd(self):

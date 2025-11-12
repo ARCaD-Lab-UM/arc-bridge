@@ -15,7 +15,7 @@ except ImportError:  # pragma: no cover - inputs is available in runtime env
 MAX_ABS_VAL = 32768
 JOYSTICK_DEAD_ZONE = 4000
 TRIGGER_DEAD_ZONE = 10
-DEVICE_NAME = "Xbox Wireless Controller"
+DEVICE_NAME = "Microsoft X-Box One S pad"
 TRIGGER_MAX = 1023
 INT8_MIN = -128
 INT8_MAX = 127
@@ -30,12 +30,13 @@ def _interpolate(raw_reading: int, min_raw: int, max_raw: int, new_scale: float)
 
 def _center_axis(raw_value: int) -> int:
     """Translate wireless axis readings (0..2*MAX_ABS_VAL) to signed range."""
-    centered = int(raw_value) - MAX_ABS_VAL
-    if centered > MAX_ABS_VAL:
-        return MAX_ABS_VAL
-    if centered < -MAX_ABS_VAL:
-        return -MAX_ABS_VAL
-    return centered
+    # centered = int(raw_value) - MAX_ABS_VAL
+    # if centered > MAX_ABS_VAL:
+    #     return MAX_ABS_VAL
+    # if centered < -MAX_ABS_VAL:
+    #     return -MAX_ABS_VAL
+    # return centered
+    return raw_value # wired already in signed range
 
 
 def _find_device(keywords: list[str]) -> evdev.InputDevice:
@@ -149,15 +150,15 @@ class Gamepad:
             elif event.code == ecodes.ABS_Y:
                 centered = _center_axis(event.value)
                 self.vx = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
-            elif event.code == ecodes.ABS_Z:
+            elif event.code == ecodes.ABS_RX:
                 centered = _center_axis(event.value)
                 self.wz = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
-            elif event.code == ecodes.ABS_RZ: # vertical movement
+            elif event.code == ecodes.ABS_RY: # vertical movement
                 centered = _center_axis(event.value)
                 self.pitch = _interpolate(centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
-            elif event.code == ecodes.ABS_BRAKE:
+            elif event.code == ecodes.ABS_Z:
                 self.lt = self._scale_trigger_value(event.value)
-            elif event.code == ecodes.ABS_GAS:
+            elif event.code == ecodes.ABS_RZ:
                 self.rt = self._scale_trigger_value(event.value)
             elif event.code == ecodes.ABS_HAT0Y:
                 if event.value == -1:
