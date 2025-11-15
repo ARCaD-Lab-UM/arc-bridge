@@ -33,7 +33,8 @@
         <texture name="texplane" type="2d" builtin="checker" rgb1="0.35 0.35 0.35" rgb2="0.55 0.55 0.55" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
         <material name="matplane" reflectance="0.0" texture="texplane" texrepeat="1 1" texuniform="true"/>
     </asset>
-        <option timestep="0.001"/>
+        <!-- <option timestep="0.001"/> -->
+        <option timestep="0.001" noslip_iterations="10"/>
 
     <keyframe> 
         <!-- torso pos; torso quat; left leg (abad, hip, knee wheel) ; right leg -->
@@ -48,6 +49,10 @@
 
         
     </keyframe>
+
+    <equality>
+        <weld name="fix_torso" body1="base_Link" relpose="0 0 -0.68 1 0 0 0" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1"/>
+    </equality>
 
     <worldbody>
         <!-- <geom name="floor" rgba="0.5 0.6 0.7 1" pos="0 0 0" size="0 0 0.25" type="plane" material="matplane" condim="3" euler="0 0.174533 0"/> -->
