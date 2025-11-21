@@ -76,6 +76,9 @@ class Gamepad:
         except OSError:
             self._grabbed = False
 
+        # Extra params to send
+        self.params = [0, 0]
+
         self.read_thread = threading.Thread(target=self.read_loop, daemon=True)
         self.read_thread.start()
 
