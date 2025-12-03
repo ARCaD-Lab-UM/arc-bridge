@@ -8,7 +8,7 @@
         <default class="visual">
             <geom contype="0" conaffinity="0" group="1" type="mesh" rgba="0.9 0.9 0.9 1.0"/>
         </default>
-        <joint armature="0.01" damping="0.01"/>
+        <joint armature="0.01" damping="0.1"/>
         <geom contype="1" conaffinity="1" condim="3" friction="0.6 0.005 0.0001" rgba="0.5 0.6 0.7 0.0" margin="0.001" group="0" />
     </default>
     <visual>
@@ -51,7 +51,7 @@
     </keyframe>
 
     <equality>
-        <weld name="fix_torso" body1="base_Link" relpose="0 0 -0.68 1 0 0 0" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1"/>
+        <weld name="fix_torso" body1="base_Link" relpose="0 0 -0.60 1 0 0 0" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1"/>
     </equality>
 
     <worldbody>
