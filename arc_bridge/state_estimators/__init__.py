@@ -1,5 +1,6 @@
 from .kalman_filter import KalmanFilter
 from .hopper_state_estimator import HopperStateEstimator
 from .floating_base_linear_state_estimator import FloatingBaseLinearStateEstimator
+from .tron1_wheeled_floating_base_linear_state_estimator import Tron1WheeledFloatingBaseLinearStateEstimator
 from .moving_window_filter import MovingWindowFilter
 from .online_average import OnlineAverage

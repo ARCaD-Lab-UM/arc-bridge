@@ -3,7 +3,7 @@ import numpy as np
 import pdb
 # import pinocchio as pin
 
-from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
+from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, Tron1WheeledFloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t
 from arc_bridge.utils import *
@@ -26,11 +26,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # State Estimator
         self.height_init = 0.7
         self.dt_estimator = 0.001 # 1kHz
-        # Process noise (px, py, pz, vx, vy, vz)
-        KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
-        # Measurement noise (px, py, pz, vx, vy, vz)
-        KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
-        self.KF = FloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
+        # Process noise (px, py, pz, vx, vy, vz, ax, ay, az)
+        KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
+        KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.KF = Tron1WheeledFloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
 
         # kinematics params
         self.l1 = 0.077
@@ -58,6 +58,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_imu = np.eye(3) # to store the torso to global rotation using imu orientation
         self.R_torso_global_vicon = np.eye(3) # to store the torso to global rotation using vicon orientation
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
+        self.only_use_vicon_for_kf = True
 
     def remove_calibration_bias(self):
         self.calibration = True
@@ -69,7 +70,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         acc_body = np.array(self.low_state.acceleration, dtype=float)
         R_body_to_world = self.R_torso_global_vicon        
 
-        acc_world = R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
+        acc_world = np.zeros(3) # R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
 
         # store the acc_world and acc_body in the buffer for calibration
         if not self.calibration:
@@ -85,23 +86,30 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 print(f"IMU calibration done. Acc bias in body frame: {self.imu_acc_bias_body}")
                 print(f"Gyro omega bias in body frame: {self.omega_bias_body}")
         else:
-            self.KF.predict(u=acc_world)
+            self.KF.predict(u=np.zeros(1))
 
-            # use the joint encoder and our FK for correction
-            meas = self.get_torso_height_and_velocity_meas_fk()
-            self.KF.correct(meas)
+            if self.only_use_vicon_for_kf:
+                # use vicon position/velocity directly for correction
+                pos = np.array(self.low_state.position[:3], dtype=float)
+                vel = np.array(self.low_state.velocity[:3], dtype=float)
+                meas = np.hstack((pos, vel))
+            else:
+                # use the joint encoder and our FK for correction
+                meas = self.get_torso_height_and_velocity_meas_fk()
+            meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
+            self.KF.correct(meas_full_state)
 
             # ! sending to controller
             self.low_state.position[:] = self.KF.x[:3]
-            self.low_state.velocity[:] = self.KF.x[3:]
+            self.low_state.velocity[:] = self.KF.x[3:6]
 
             # visualization of the state estimation (red box and blue arrow)
             self.vis_pos_est = self.KF.x[:3]
-            self.vis_vel_est = self.KF.x[3:]
+            self.vis_vel_est = self.KF.x[3:6]
             self.vis_R_body = R_body_to_world
-            self.vel_body = R_body_to_world.T @ self.KF.x[3:]
+            self.vel_body = R_body_to_world.T @ self.KF.x[3:6]
 
-    
+
     def parse_robot_specific_low_state(self):
         # Used in simulation thread (update low_state from mj_data)
         # reload the positions and velocities with KF output
@@ -110,7 +118,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_vicon = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
         self.update_state_estimation()
-        
+
 
     def lcm_state_handler(self, channel, data):
         if self.mj_data == None:
@@ -118,22 +126,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Get state msg from robot SDK topic
         msg = eval(self.topic_state+"_t").decode(data)
 
-        #  update low_state from the msg sent by robot SDK
-        self.low_state.qj_pos[:] = (np.array(msg.qj_pos) + self.joint_offsets).tolist() # ! This one needs offsets since it should match with controller's model
-        self.low_state.qj_pos[:] = msg.qj_pos
-        self.low_state.qj_vel[:] = msg.qj_vel
-        self.low_state.qj_tau[:] = msg.qj_tau
-        self.low_state.acceleration[:] = msg.acceleration - self.imu_acc_bias_body
-        self.low_state.omega[:] = msg.omega - self.omega_bias_body
-        self.low_state.quaternion[:] = msg.quaternion
-        self.low_state.rpy[:] = msg.rpy
-        self.low_state.position[:] = msg.position
-
-        # update the R torso global (based on IMU rpy)
-        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
-        self.R_torso_global_imu = quat_to_rot(quat_from_imu)
-
-        
         # Update mj_data for visualization 
         self.mj_data.qpos[0] = msg.position[0] # robot in the mujoco viewer is vicon pose
         self.mj_data.qpos[1] = msg.position[1] # 
@@ -142,8 +134,24 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.mj_data.qpos[4] = msg.quaternion[1]
         self.mj_data.qpos[5] = msg.quaternion[2]
         self.mj_data.qpos[6] = msg.quaternion[3]
-        self.mj_data.qpos[7:7+8] = msg.qj_pos - self.joint_offsets
+        self.mj_data.qpos[7:7+8] = msg.qj_pos - self.joint_offsets # to macth with xml
         self.mj_data.qvel[:] = 0
+
+        # Partially update low_state from the msg sent by robot SDK
+        self.low_state.qj_pos[:] = msg.qj_pos
+        self.low_state.qj_vel[:] = msg.qj_vel
+        self.low_state.qj_tau[:] = msg.qj_tau
+        self.low_state.acceleration[:] = msg.acceleration - self.imu_acc_bias_body
+        self.low_state.omega[:] = msg.omega - self.omega_bias_body
+        self.low_state.quaternion[:] = msg.quaternion
+        self.low_state.rpy[:] = msg.rpy
+        self.low_state.position[:] = msg.position
+        self.low_state.velocity[:] = msg.velocity
+
+        # update the R torso global (based on IMU rpy)
+        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
+        self.R_torso_global_imu = quat_to_rot(quat_from_imu)
+
 
     def get_torso_height_and_velocity_meas_fk(self):
         #  calculate the kinematics in body frame first
@@ -290,4 +298,4 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             qj_legs_ik[:, leg_i] = np.array([q_abad, q_hip, q_knee, q_wheel])
 
         return qj_legs_ik
-        
+
