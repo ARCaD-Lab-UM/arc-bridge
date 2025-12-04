@@ -25,8 +25,8 @@ class Config:
     }
     valid_robot_types = list(robot_path_dict.keys())
 
-    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0):
-
+    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0, launch_args=None):
+        self.launch_args = launch_args
         self.robot_type = robot_type
         if self.robot_type not in self.valid_robot_types:
             raise ValueError(f"Invalid robot type: {self.robot_type}. Valid robot types are: {self.valid_robot_types}")

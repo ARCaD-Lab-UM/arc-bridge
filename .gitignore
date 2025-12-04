@@ -175,3 +175,4 @@ lcm_types/*.py
 .DS_Store
 .idea/
 MUJOCO_LOG.TXT
+AGENTS.md

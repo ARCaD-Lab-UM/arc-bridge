@@ -200,6 +200,7 @@ class Gamepad:
                 print("EStop Flagged, press LEFT joystick to release.")
             self._estop_flagged = True
             self.vx = self.vy = self.wz = 0.0
+            self.params = [0, 0]
 
     def get_command(self):
         """

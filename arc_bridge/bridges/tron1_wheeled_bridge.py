@@ -59,6 +59,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_vicon = np.eye(3) # to store the torso to global rotation using vicon orientation
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
         self.only_use_vicon_for_kf = True
+        # Replay buffers to avoid races between LCM and simulation threads
+        self._rx_state_position = np.zeros(3)
+        self._rx_state_velocity = np.zeros(3)
+        self._rx_state_available = False
 
     def remove_calibration_bias(self):
         self.calibration = True
@@ -99,20 +103,30 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
             self.KF.correct(meas_full_state)
 
-            # ! sending to controller
-            self.low_state.position[:] = self.KF.x[:3]
-            self.low_state.velocity[:] = self.KF.x[3:6]
+            # # ! sending to controller
+            # self.low_state.position[:] = self.KF.x[:3]
+            # self.low_state.velocity[:] = self.KF.x[3:6]
 
-            # visualization of the state estimation (red box and blue arrow)
-            self.vis_pos_est = self.KF.x[:3]
-            self.vis_vel_est = self.KF.x[3:6]
+            # # visualization of the state estimation (red box and blue arrow)
+            # self.vis_pos_est = self.KF.x[:3]
+            # self.vis_vel_est = self.KF.x[3:6]
+            # self.vis_R_body = R_body_to_world
+            # self.vel_body = R_body_to_world.T @ self.KF.x[3:6]
+            # visulization when on KF - UNCOMMENT
+            self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
+            self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
             self.vis_R_body = R_body_to_world
-            self.vel_body = R_body_to_world.T @ self.KF.x[3:6]
 
 
     def parse_robot_specific_low_state(self):
         # Used in simulation thread (update low_state from mj_data)
         # reload the positions and velocities with KF output
+        launch_args = getattr(self.config, "launch_args", None)
+        in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
+        if in_replay_mode and self._rx_state_available:
+            # use received position and velocity when in replay mode
+            self.low_state.position[:] = self._rx_state_position
+            self.low_state.velocity[:] = self._rx_state_velocity
         
         # update the R torso global (based on vicon quaternion)
         self.R_torso_global_vicon = quat_to_rot(Quaternion(*self.low_state.quaternion))
@@ -145,7 +159,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.omega[:] = msg.omega - self.omega_bias_body
         self.low_state.quaternion[:] = msg.quaternion
         self.low_state.rpy[:] = msg.rpy
-        self.low_state.position[:] = msg.position
+        # self._rx_state_position[:] = msg.position # copy because of write from another thread
+        # self._rx_state_velocity[:] = msg.velocity
+        # self._rx_state_available = True
+        self.low_state.position[:] = msg.position # no KF - UNCOMMENT
         self.low_state.velocity[:] = msg.velocity
 
         # update the R torso global (based on IMU rpy)
@@ -298,4 +315,3 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             qj_legs_ik[:, leg_i] = np.array([q_abad, q_hip, q_knee, q_wheel])
 
         return qj_legs_ik
-

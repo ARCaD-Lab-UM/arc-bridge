@@ -75,6 +75,7 @@ def main():
         robot_type,
         control_delay=args.control_delay,
         sensor_delay=args.sensor_delay,
+        launch_args=args,
     )
 
     # Initialize Mujoco
