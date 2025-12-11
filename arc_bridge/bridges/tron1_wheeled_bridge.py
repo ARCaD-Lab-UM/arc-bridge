@@ -134,8 +134,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # visualization of the state estimation (red box and blue arrow)
             self.vis_pos_est = self.KF.x[:3]
             self.vis_vel_est = self.KF.x[3:6]
-            self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
-            self.vel_body = self.R_torso_global_rpy.T @ self.KF.x[3:6] # R_body_to_world
+            self.vis_R_body = R_body_to_world
+            self.vel_body = R_body_to_world.T @ self.KF.x[3:6]
 
             # # visualization dt later
             # dt = 0.1 # change manually if needed
@@ -144,12 +144,12 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # vel_now = self.KF.x[3:6] + acc_est * dt
             # self.vis_pos_est = pos_now
             # self.vis_vel_est = vel_now
-            # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+            # self.vis_R_body = R_body_to_world
 
             # # visulization when no KF - UNCOMMENT this and COMMENT above to use
             # self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
             # self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
-            # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+            # self.vis_R_body = R_body_to_world
 
     def parse_robot_specific_low_state(self):
         # This function is called in simulation thread
