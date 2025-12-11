@@ -32,7 +32,7 @@ def simulate_mujoco():
                 bridge.low_cmd_received = False
             else:
                 # Publish to topic_state.upper() for real robot
-                bridge.publish_low_state(bridge.topic_state.upper(), skip_common_state=True) # need bridge.topic_state.upper()
+                bridge.publish_low_state(bridge.topic_state.upper(), skip_common_state=True)
 
         # Wait to sync wall clock with simulation time
         next_time += mj_model.opt.timestep
@@ -112,13 +112,11 @@ def main():
 
     if args.replay:
         # Subscribe to topic_state from real robot to parse common states
-        bridge.register_low_state_subscriber(bridge.topic_state) # no upper()
+        bridge.register_low_state_subscriber(bridge.topic_state)
         # Subscribe to topic_cmd.upper() from upper level controller to prevent wrong command sources
-        bridge.register_low_cmd_subscriber(bridge.topic_cmd.upper()) # need upper()
+        bridge.register_low_cmd_subscriber(bridge.topic_cmd.upper())
     else:
         bridge.register_low_cmd_subscriber(bridge.topic_cmd)
-        if bridge_name == "Tron1WheeledBridge":
-            bridge.remove_calibration_bias()
 
     # Handle SIGINT to exit gracefully
     signal.signal(signal.SIGINT, signal_handler)
@@ -167,7 +165,6 @@ def main():
             # Turn state_only on to make sync() really fast.
             # No mj_model modification on the fly is allowed instead.
             viewer.sync(state_only=True) # state_only is introduced in mujoco 3.3.4
-            # viewer.sync()
 
         time.sleep(Config.dt_viewer)
 
