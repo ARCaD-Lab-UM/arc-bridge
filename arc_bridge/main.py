@@ -161,6 +161,95 @@ def main():
                 bridge.vis_pos_est + bridge.vis_vel_est*0.5)
             viewer.user_scn.ngeom = 2
 
+        if bridge.vis_traj:
+            geom_idx = 2
+            n_horizon = bridge.vis_torso_pos.shape[0]
+            
+            # Draw torso trajectory with decreasing transparency
+            for h in range(n_horizon):
+                alpha = 0.7 - (h / n_horizon) * 0.65  # Transparency from 0.7 to 0.0
+                
+                # Draw torso position as a box
+                mujoco.mjv_initGeom(
+                    viewer.user_scn.geoms[geom_idx],
+                    type=mujoco.mjtGeom.mjGEOM_BOX,
+                    size=np.array([0.05, 0.1, 0.04]),
+                    pos=bridge.vis_torso_pos[h],
+                    mat=bridge.vis_torso_R[h].flatten(),
+                    rgba=[0.2, 0.6, 1.0, alpha]  # Light blue
+                )
+                geom_idx += 1
+                
+                # Draw torso velocity as an arrow
+                mujoco.mjv_initGeom(
+                    viewer.user_scn.geoms[geom_idx],
+                    type=mujoco.mjtGeom.mjGEOM_ARROW,
+                    size=np.zeros(3),
+                    pos=np.zeros(3),
+                    mat=np.zeros(9),
+                    rgba=[0.0, 0.8, 1.0, alpha]  # Cyan
+                )
+                mujoco.mjv_connector(
+                    viewer.user_scn.geoms[geom_idx],
+                    mujoco.mjtGeom.mjGEOM_ARROW,
+                    0.015,
+                    bridge.vis_torso_pos[h],
+                    bridge.vis_torso_pos[h] + bridge.vis_torso_vel[h] * 0.3
+                )
+                geom_idx += 1
+                
+                # Draw wheel positions as spheres
+                for leg in range(2):
+                    mujoco.mjv_initGeom(
+                        viewer.user_scn.geoms[geom_idx],
+                        type=mujoco.mjtGeom.mjGEOM_SPHERE,
+                        size=np.array([0.06, 0, 0]),
+                        pos=bridge.vis_wheel_pos[h, leg],
+                        mat=np.eye(3).flatten(),
+                        rgba=[0.0, 1.0, 0.3, alpha]  # Green
+                    )
+                    geom_idx += 1
+                
+                # Draw wheel velocities as arrows
+                for leg in range(2):
+                    mujoco.mjv_initGeom(
+                        viewer.user_scn.geoms[geom_idx],
+                        type=mujoco.mjtGeom.mjGEOM_ARROW,
+                        size=np.zeros(3),
+                        pos=np.zeros(3),
+                        mat=np.zeros(9),
+                        rgba=[0.5, 1.0, 0.0, alpha]  # Yellow-green
+                    )
+                    mujoco.mjv_connector(
+                        viewer.user_scn.geoms[geom_idx],
+                        mujoco.mjtGeom.mjGEOM_ARROW,
+                        0.015,
+                        bridge.vis_wheel_pos[h, leg],
+                        bridge.vis_wheel_pos[h, leg] + bridge.vis_wheel_vel[h, leg] * 0.3
+                    )
+                    geom_idx += 1
+                
+                # Draw ground reaction forces as arrows
+                for leg in range(2):
+                    mujoco.mjv_initGeom(
+                        viewer.user_scn.geoms[geom_idx],
+                        type=mujoco.mjtGeom.mjGEOM_ARROW,
+                        size=np.zeros(3),
+                        pos=np.zeros(3),
+                        mat=np.zeros(9),
+                        rgba=[1.0, 0.2, 0.8, alpha]  # Magenta
+                    )
+                    mujoco.mjv_connector(
+                        viewer.user_scn.geoms[geom_idx],
+                        mujoco.mjtGeom.mjGEOM_ARROW,
+                        0.02,
+                        bridge.vis_wheel_pos[h, leg],
+                        bridge.vis_wheel_pos[h, leg] + bridge.vis_grf[h, leg] * 0.005
+                    )
+                    geom_idx += 1
+            
+            viewer.user_scn.ngeom = geom_idx
+
         with viewer.lock():
             # Turn state_only on to make sync() really fast.
             # No mj_model modification on the fly is allowed instead.
