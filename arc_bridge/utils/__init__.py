@@ -9,8 +9,7 @@ def _supports_evdev() -> bool:
 
 
 if _supports_evdev():
-    # from .gamepad_reader_wired import Gamepad
-    from .gamepad_reader_wireless import Gamepad
+    from .gamepad_reader_evdev import Gamepad
 else:
     from .gamepad_reader import Gamepad
 from .orientation_utils import *

@@ -1,9 +1,15 @@
-import time
 import threading
-from typing import Optional
+import time
+from typing import Optional, Sequence
 
 import evdev
 from evdev import ecodes
+
+try:
+    from .config_gamepad_reader_evdev import DeviceProfile, DEFAULT_PROFILE, DEVICE_PROFILES
+except ImportError:
+    # Allow running the module as a test script from the utils directory.
+    from config_gamepad_reader_evdev import DeviceProfile, DEFAULT_PROFILE, DEVICE_PROFILES
 
 try:
     from inputs import UnpluggedError
@@ -12,11 +18,6 @@ except ImportError:  # pragma: no cover - inputs is available in runtime env
         pass
 
 
-MAX_ABS_VAL = 32768
-JOYSTICK_DEAD_ZONE = 4000
-TRIGGER_DEAD_ZONE = 10
-DEVICE_NAMES = ["Xbox Wireless Controller"]
-TRIGGER_MAX = 1023
 INT8_MIN = -128
 INT8_MAX = 127
 
@@ -26,16 +27,6 @@ def _interpolate(raw_reading: int, min_raw: int, max_raw: int, new_scale: float)
     if abs(raw_reading) < min_raw:
         return 0.0
     return raw_reading / max_raw * new_scale
-
-
-def _center_axis(raw_value: int) -> int:
-    """Translate wireless axis readings (0..2*MAX_ABS_VAL) to signed range."""
-    centered = int(raw_value) - MAX_ABS_VAL
-    if centered > MAX_ABS_VAL:
-        return MAX_ABS_VAL
-    if centered < -MAX_ABS_VAL:
-        return -MAX_ABS_VAL
-    return centered
 
 
 def _is_gamepad(device: evdev.InputDevice) -> bool:
@@ -52,8 +43,8 @@ def _is_gamepad(device: evdev.InputDevice) -> bool:
     return any(btn in key_codes for btn in gamepad_buttons)
 
 
-def _find_device(keywords: Optional[list[str]]) -> evdev.InputDevice:
-    """Locate the gamepad by name."""
+def _find_device(keywords: Optional[Sequence[str]]) -> evdev.InputDevice:
+    """Locate the first matching gamepad device."""
     for path in evdev.list_devices():
         device = evdev.InputDevice(path)
         # print(f"Found device: {device.name}")
@@ -68,8 +59,28 @@ def _find_device(keywords: Optional[list[str]]) -> evdev.InputDevice:
     raise UnpluggedError(f"No gamepad matching keywords {keywords} found.")
 
 
+def _classify_device(device: evdev.InputDevice) -> DeviceProfile:
+    """Return the DeviceProfile best matching the device name."""
+    for profile in DEVICE_PROFILES:
+        if profile.matches(device.name):
+            return profile
+    return DEFAULT_PROFILE
+
+
+def _center_axis(raw_value: int, needs_recentering: bool, max_abs_val: int) -> int:
+    """Translate axis readings to signed range based on the profile."""
+    if not needs_recentering:
+        return raw_value
+    centered = int(raw_value) - max_abs_val
+    if centered > max_abs_val:
+        return max_abs_val
+    if centered < -max_abs_val:
+        return -max_abs_val
+    return centered
+
+
 class Gamepad:
-    """Gamepad reading events via evdev."""
+    """Gamepad reading events via evdev with device-specific profiles."""
 
     def __init__(
         self,
@@ -82,14 +93,11 @@ class Gamepad:
     ):
         self.device: Optional[evdev.InputDevice] = None
         self._grabbed = False
-        if dev_name_keywords is None:
-            self._dev_name_keywords = None
-        else:
-            self._dev_name_keywords = list(dev_name_keywords)
+        self._dev_name_keywords = list(dev_name_keywords) if dev_name_keywords is not None else None
         self._vel_scale_x = float(vel_scale_x)
         self._vel_scale_y = float(vel_scale_y)
         self._vel_scale_rot = float(vel_scale_rot)
-        self._scale_pitch = scale_pitch
+        self._scale_pitch = float(scale_pitch)
         self._triggers_scale = float(triggers_scale)
         self._lb_pressed = False
         self._rb_pressed = False
@@ -101,13 +109,15 @@ class Gamepad:
         self.is_running = True
 
         self.pitch = 0.0
-        self.params = [0, 0] # D-Pad counters: [0]: down-,up+ [1]: left-,right+
+        self.params = [0, 0]  # D-Pad counters: [0]: down-,up+ [1]: left-,right+
         self.buttons = [False, False, False, False]  # up left down right order
-        self.lbrb = [False, False] # left bumper, right bumper
-        self.ljrj = [False, False] # left joystick press, right joystick press
-        self.lt, self.rt = 0.0, 0.0 # left and right triggers
+        self.lbrb = [False, False]  # left bumper, right bumper
+        self.ljrj = [False, False]  # left joystick press, right joystick press
+        self.lt, self.rt = 0.0, 0.0  # left and right triggers
 
         self.device = _find_device(self._dev_name_keywords)
+        self._profile = _classify_device(self.device)
+
         try:
             self.device.grab()
             self._grabbed = True
@@ -142,53 +152,9 @@ class Gamepad:
     def update_command(self, event: evdev.events.InputEvent) -> None:
         """Update command state with incoming event data."""
         if event.type == ecodes.EV_KEY:
-            if event.code == ecodes.BTN_TL:
-                self._lb_pressed = bool(event.value)
-                self.lbrb[0] = self._lb_pressed
-            elif event.code == ecodes.BTN_TR:
-                self._rb_pressed = bool(event.value)
-                self.lbrb[1] = self._rb_pressed
-            elif event.code == ecodes.BTN_THUMBL:
-                self._lj_pressed = bool(event.value)
-                self.ljrj[0] = self._lj_pressed
-            elif event.code == ecodes.BTN_THUMBR:
-                self._rj_pressed = bool(event.value)
-                self.ljrj[1] = self._rj_pressed
-            elif event.code == ecodes.BTN_WEST:
-                self.buttons[0] = bool(event.value)
-            elif event.code == ecodes.BTN_NORTH:
-                self.buttons[1] = bool(event.value)
-            elif event.code == ecodes.BTN_SOUTH:
-                self.buttons[2] = bool(event.value)
-            elif event.code == ecodes.BTN_EAST:
-                self.buttons[3] = bool(event.value)
+            self._handle_key_event(event)
         elif event.type == ecodes.EV_ABS:
-            if event.code == ecodes.ABS_X:
-                centered = _center_axis(event.value)
-                self.vy = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_y)
-            elif event.code == ecodes.ABS_Y:
-                centered = _center_axis(event.value)
-                self.vx = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
-            elif event.code == ecodes.ABS_Z:
-                centered = _center_axis(event.value)
-                self.wz = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
-            elif event.code == ecodes.ABS_RZ: # vertical movement
-                centered = _center_axis(event.value)
-                self.pitch = _interpolate(-centered, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
-            elif event.code == ecodes.ABS_BRAKE:
-                self.lt = self._scale_trigger_value(event.value)
-            elif event.code == ecodes.ABS_GAS:
-                self.rt = self._scale_trigger_value(event.value)
-            elif event.code == ecodes.ABS_HAT0Y:
-                if event.value == -1:
-                    self._update_params(0, 1)
-                elif event.value == 1:
-                    self._update_params(0, -1)
-            elif event.code == ecodes.ABS_HAT0X:
-                if event.value == -1:
-                    self._update_params(1, -1)
-                elif event.value == 1:
-                    self._update_params(1, 1)
+            self._handle_axis_event(event)
 
         if self._estop_flagged and self._lj_pressed:
             self._estop_flagged = False
@@ -200,6 +166,57 @@ class Gamepad:
             self._estop_flagged = True
             self.vx = self.vy = self.wz = 0.0
             self.params = [0, 0]
+
+    def _handle_key_event(self, event: evdev.events.InputEvent) -> None:
+        if event.code == self._profile.btn_lb:
+            self._lb_pressed = bool(event.value)
+            self.lbrb[0] = self._lb_pressed
+        elif event.code == self._profile.btn_rb:
+            self._rb_pressed = bool(event.value)
+            self.lbrb[1] = self._rb_pressed
+        elif event.code == self._profile.btn_lstick:
+            self._lj_pressed = bool(event.value)
+            self.ljrj[0] = self._lj_pressed
+        elif event.code == self._profile.btn_rstick:
+            self._rj_pressed = bool(event.value)
+            self.ljrj[1] = self._rj_pressed
+        elif event.code == self._profile.btn_up:
+            self.buttons[0] = bool(event.value)
+        elif event.code == self._profile.btn_left:
+            self.buttons[1] = bool(event.value)
+        elif event.code == self._profile.btn_down:
+            self.buttons[2] = bool(event.value)
+        elif event.code == self._profile.btn_right:
+            self.buttons[3] = bool(event.value)
+
+    def _handle_axis_event(self, event: evdev.events.InputEvent) -> None:
+        profile = self._profile
+        if event.code == profile.axis_vy:
+            centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
+            self.vy = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_y)
+        elif event.code == profile.axis_vx:
+            centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
+            self.vx = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_x)
+        elif event.code == profile.axis_wz:
+            centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
+            self.wz = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_rot)
+        elif event.code == profile.axis_pitch:
+            centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
+            self.pitch = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._scale_pitch)
+        elif event.code == profile.axis_lt:
+            self.lt = self._scale_trigger_value(event.value)
+        elif event.code == profile.axis_rt:
+            self.rt = self._scale_trigger_value(event.value)
+        elif event.code == profile.axis_params_vertical:
+            if event.value == -1:
+                self._update_params(0, 1)
+            elif event.value == 1:
+                self._update_params(0, -1)
+        elif event.code == profile.axis_params_horizontal:
+            if event.value == -1:
+                self._update_params(1, -1)
+            elif event.value == 1:
+                self._update_params(1, 1)
 
     def get_command(self):
         """
@@ -227,7 +244,7 @@ class Gamepad:
         Return bumper buttons state as a list. [0]: left bumper, [1]: right bumper
         """
         return list(self.lbrb)
-    
+
     def get_ljrj(self):
         """
         Return joystick press buttons state as a list. [0]: left joystick press, [1]: right joystick press
@@ -241,8 +258,9 @@ class Gamepad:
         return self.lt, self.rt
 
     def _scale_trigger_value(self, raw_value: int) -> float:
-        clamped = max(0, min(TRIGGER_MAX, raw_value))
-        return _interpolate(clamped, TRIGGER_DEAD_ZONE, TRIGGER_MAX, self._triggers_scale)
+        profile = self._profile
+        clamped = max(0, min(profile.trigger_max, raw_value))
+        return _interpolate(clamped, profile.trigger_dead_zone, profile.trigger_max, self._triggers_scale)
 
     def _update_params(self, index: int, delta: int) -> None:
         new_value = self.params[index] + delta
