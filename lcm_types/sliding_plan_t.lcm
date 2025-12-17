@@ -1,0 +1,19 @@
+package lcm_msgs;
+
+struct sliding_plan_t
+{
+    int64_t  timestamp;
+
+    int8_t   n_horizon;
+
+    // double   qj_tau_ff[n_horizon][8];
+
+    double   qd_trb[n_horizon][14];
+    double   dqd_trb[n_horizon][14];
+
+    double   lambda_des[n_horizon][6];
+
+    // object prediction
+    double  qd_ob[n_horizon][2];
+    double  dqd_ob[n_horizon][2];
+}

@@ -13,6 +13,4 @@ struct sliding_control_t
     double   kd[8];
 
     boolean  reset_se;
-
-    double  contact[2]; // scheduled contact for each foot
 }

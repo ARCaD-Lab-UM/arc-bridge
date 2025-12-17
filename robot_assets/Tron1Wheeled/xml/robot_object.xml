@@ -36,10 +36,21 @@
         <option timestep="0.001"/>
 
     <keyframe>
-        <!-- <key name="0" qpos="0.1 0 0.70   1 0 0 0   0.1824 0.7097 -0.9027 0   0 -0.2651 -0.7382 0   0.2 -0.1  0.01   1 0 0 0" /> -->
-        <key name="0" qpos="0 0 0.92   1 0 0 0   0 -0.1 0 0   0 -0.1 0 0   1 0 0 1 0 0 0" />
-        <!-- <key name="0" qpos="0.1 0 0.71   1 0 0 0   0 0.7221 -0.9204 0   0 -0.2648 -0.7383 0   0.3 -0.1 0.01   1 0 0 0" /> -->
+        <!-- only robot stand up -->
+        <!-- <key name="0" qpos="0 0 0.70   1 0 0 0   0 0.4242 -0.9558 0   0 0.4581 -1.0328 0   0 -0.1  0.01   1 0 0 0" /> -->
+
+        <!-- two legs parallel to retrieve object -->
+        <key name="0" qpos="0 0 0.70   1 0 0 0   0 0.4242 -0.9558 0   0 0.4581 -1.0328 0   0 -0.2  0.01   1 0 0 0" />
+        <!-- one leg forward to retrieve object -->
+        <key name="1" qpos="0.1 0 0.70   1 0 0 0   0.1824 0.7097 -0.9027 0   0 -0.2651 -0.7382 0   0.2 -0.1  0.01   1 0 0 0" />
+        
+        <!-- scooting  but need use the larger object-->
+        <!-- <key name="0" qpos="0 0 0.71   1 0 0 0   0 0.5172 -1.0044 0   0 0.5172 -1.0044 0   0 0 0.01   1 0 0 0" /> -->
     </keyframe>
+
+    <equality>
+        <weld name="fix_torso" body1="base_Link" relpose="0 0 -.7 1 0 0 0" solimp="0.9 0.95 0.001 0.5 2" solref="0.02 1"/>
+    </equality>
 
     <worldbody>
         <geom name="floor" rgba="0.5 0.6 0.7 1" pos="0 0 0" size="0 0 0.25" type="plane" material="matplane" condim="3"/>
@@ -130,9 +141,17 @@
     <body>
       <inertial pos="0 0 0" quat="1 0 0 0" mass="0.5" diaginertia="0.0037 0.0037 0.0037" />
       <joint type="free" limited="false" damping="0.0000" stiffness="0.0000" armature="0"/>
-      <geom class="visual" name="object" type="box" size="0.3 0.15 0.01" pos="0 0 0" quat="1 0 0 0"/>
-      <geom name="object_collision" type="box" size="0.3 0.15 0.01" pos="0 0 0" quat="1 0 0 0" friction="0.9 0.005 0.0001"/>
+      <geom class="visual" name="object" type="box" size="0.2 0.2 0.01" pos="0 0 0" quat="1 0 0 0"/>
+      <geom name="object_collision" type="box" size="0.2 0.2 0.01" pos="0 0 0" quat="1 0 0 0" friction="0.5 0.005 0.0001"/>
     </body>
+
+    <!-- big object for scooting  -->
+    <!-- <body>
+      <inertial pos="0 0 0" quat="1 0 0 0" mass="0.5" diaginertia="0.1 0.1 0.015" />
+      <joint type="free" limited="false" damping="0.0000" stiffness="0.0000" armature="0"/>
+      <geom class="visual" name="object" type="box" size="0.3 0.3 0.01" pos="0 0 0" quat="1 0 0 0"/>
+      <geom name="object_collision" type="box" size="0.3 0.3 0.01" pos="0 0 0" quat="1 0 0 0" friction="0.4 0.005 0.0001"/>
+    </body> -->
   </worldbody>
 
     <actuator>
