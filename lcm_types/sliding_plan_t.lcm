@@ -14,6 +14,6 @@ struct sliding_plan_t
     double   lambda_des[n_horizon][6];
 
     // object prediction
-    double  qd_ob[n_horizon][2];
-    double  dqd_ob[n_horizon][2];
+    double  qd_ob[n_horizon][3];
+    double  dqd_ob[n_horizon][3];
 }

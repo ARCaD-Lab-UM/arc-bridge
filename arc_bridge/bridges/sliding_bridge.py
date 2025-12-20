@@ -6,10 +6,9 @@ from nav_msgs.msg import Odometry
 
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
 from .tron1_wheeled_bridge import Tron1WheeledBridge
-from arc_bridge.lcm_msgs import tron1_wheeled_plan_t
 from arc_bridge.utils import *
 from arc_bridge.state_estimators import SlideObjectFloatingBaseLinearStateEstimator
-
+from arc_bridge.lcm_msgs import tron1_wheeled_plan_t, sliding_plan_t
 
 class SlidingBridge(Tron1WheeledBridge):
     def __init__(self, mj_model, mj_data, config):
@@ -29,8 +28,12 @@ class SlidingBridge(Tron1WheeledBridge):
         # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
         object_KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
         self.slide_object_kf = SlideObjectFloatingBaseLinearStateEstimator(self.slide_object_dt_estimator, object_KF_Q, object_KF_R, self.slide_object_height_init)
-        self.slide_object_use_kf = True
+        self.slide_object_use_kf = False
 
+        # object visualization variables
+        self.vis_object_pos = None
+        self.vis_object_vel = None
+        
     def parse_robot_specific_low_state(self):
         super().parse_robot_specific_low_state()
 
@@ -149,27 +152,35 @@ class SlidingBridge(Tron1WheeledBridge):
         # Get desired torso and wheel state from tron1_wheeled_plan topic
         # and visualize it in mujoco viewer
 
-        self.vis_traj = True
 
         # We need to overwrite vis_pos_est and vis_vel_est for visualization
-        msg = tron1_wheeled_plan_t.decode(data)
+        msg = sliding_plan_t.decode(data)
 
         # Extract MPC command trajectory
         n_horizon = msg.n_horizon
         desired_q_trb_traj = np.array(msg.qd_trb).reshape(n_horizon, 14)  # (n_horizon, 14)
         desired_v_trb_traj = np.array(msg.dqd_trb).reshape(n_horizon, 14)  # (n_horizon, 14)
         desired_grf_traj = np.array(msg.lambda_des).reshape(n_horizon, 6)  # (n_horizon, 6)
+        desired_p_object_traj = np.array(msg.qd_ob).reshape(n_horizon, 3)  # (n_horizon, 3)
+        desired_v_object_traj = np.array(msg.dqd_ob).reshape(n_horizon, 3)  # (n_horizon, 3)
 
-        # show in global frame 
+        # otherwise in yaw-aligned frame
+        traj_in_global_frame = True 
         robot_pos = np.array(self.low_state.position[:3], dtype=float)
         robot_pos[2] = 0.0  # ignore height
-        robot_pos = robot_pos*0
         robot_yaw = self.low_state.rpy[2]
         R_yaw = np.array([
-            [1, 0, 0],
-            [0, 1, 0],
+            [np.cos(robot_yaw), -np.sin(robot_yaw), 0],
+            [np.sin(robot_yaw),  np.cos(robot_yaw), 0],
             [0, 0, 1]
         ])
+        if traj_in_global_frame:
+            robot_pos = robot_pos*0
+            R_yaw = np.array([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ])
 
         # Build floating base state trajectory from MPC command (in yaw-aligned frame)
         desired_pos_yaw = desired_q_trb_traj[:, :3]  # (n_horizon, 3)
@@ -202,6 +213,10 @@ class SlidingBridge(Tron1WheeledBridge):
         desired_grf_yaw = desired_grf_traj.reshape(n_horizon, 2, 3)
         desired_grf = np.array([[R_yaw @ desired_grf_yaw[h, leg] 
                                  for leg in range(2)] for h in range(n_horizon)])  # (n_horizon, 2, 3)
+        
+        # Transform object position and  velocity to world frame
+        desired_object_pos = np.array([R_yaw @ p + robot_pos for p in desired_p_object_traj])  # (n_horizon, 3)
+        desired_object_vel = np.array([R_yaw @ v for v in desired_v_object_traj])  # (n_horizon, 3)
 
         # Overwrite visualization variables
         self.vis_torso_pos = desired_pos
@@ -212,6 +227,12 @@ class SlidingBridge(Tron1WheeledBridge):
         self.vis_wheel_vel = desired_wheel_vel
 
         self.vis_grf = desired_grf
+
+        self.vis_object_pos = desired_object_pos
+        self.vis_object_vel = desired_object_vel
+
+        self.vis_traj = True
+
 
     def register_low_cmd_subscriber(self, topic):
         # Run superclass method
