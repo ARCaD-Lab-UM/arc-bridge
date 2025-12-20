@@ -1,31 +1,147 @@
 import mujoco
-import pdb
 import numpy as np
+import pdb
 import pinocchio as pin
+from nav_msgs.msg import Odometry
 
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
-from arc_bridge.utils import *
+from .tron1_wheeled_bridge import Tron1WheeledBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_plan_t
+from arc_bridge.utils import *
+from arc_bridge.state_estimators import SlideObjectFloatingBaseLinearStateEstimator
 
-class SlidingBridge(Lcm2MujocoBridge):
+
+class SlidingBridge(Tron1WheeledBridge):
     def __init__(self, mj_model, mj_data, config):
         super().__init__(mj_model, mj_data, config)
-        # Override motor offsets (rad)
-        self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
-                                       0, 0.53, -0.55-0.54, 0])
-        self.vis_traj = False
-        self.vis_wheel_pos = None
-        self.vis_wheel_vel = None
-        self.vis_grf = None
-        
+
+        self.vicon_slide_object_pos = np.zeros(3, dtype=float)
+        self.vicon_slide_object_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
+        self.vicon_slide_object_lin_vel_world = np.zeros(3, dtype=float)
+        self.vicon_slide_object_ang_omega_world = np.zeros(3, dtype=float)
+        if self.in_replay_mode and self.vicon_ros2_client is not None:
+            self.vicon_ros2_client.subscribe_slide_object(self._vicon_slide_object_callback, topic="/odometry/slide_object")
+
+        self.slide_object_height_init = 0.0
+        self.slide_object_dt_estimator = 0.001
+        # Process noise (px, py, pz, vx, vy, vz, ax, ay, az)
+        object_KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
+        object_KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.slide_object_kf = SlideObjectFloatingBaseLinearStateEstimator(self.slide_object_dt_estimator, object_KF_Q, object_KF_R, self.slide_object_height_init)
+        self.slide_object_use_kf = True
+
     def parse_robot_specific_low_state(self):
-        # pdb.set_trace()
-        self.low_state.pos_ob = self.mj_data.qpos[15:15+3]
-        self.low_state.quat_ob = self.mj_data.qpos[15+3:15+7]
-        self.low_state.vel_ob = self.mj_data.qvel[14:14+3]
-        self.low_state.omega_ob = self.mj_data.qvel[14+3:14+6]   
+        super().parse_robot_specific_low_state()
 
+        if not self.in_replay_mode:
+            self.low_state.pos_ob[:] = self.mj_data.qpos[15:18]
+            self.low_state.quat_ob[:] = self.mj_data.qpos[18:22]
+            self.low_state.vel_ob[:] = self.mj_data.qvel[14:17]
+            self.low_state.omega_ob[:] = self.mj_data.qvel[17:20]
 
+        if self.slide_object_use_kf:
+            self.update_slide_object_state_estimation()
+        else:
+            self.mj_data.qpos[15:18] = self.low_state.pos_ob
+            self.mj_data.qpos[18:22] = self.low_state.quat_ob
+            self.mj_data.qvel[14:17] = self.low_state.vel_ob
+            self.mj_data.qvel[17:20] = self.low_state.omega_ob
+
+    def update_slide_object_state_estimation(self):
+        if self.in_replay_mode:
+            # in replay mode, correction is done in callback
+            with self.vicon_lock:
+                self.slide_object_kf.predict(u=np.zeros(1))
+        else:
+            self.slide_object_kf.predict(u=np.zeros(1))
+            # use ground truth position/velocity for testing
+            pos = np.array(self.low_state.pos_ob[:3], dtype=float)
+            vel = np.array(self.low_state.vel_ob[:3], dtype=float)
+            acc_world = np.zeros(3, dtype=float) # assume zero acceleration
+            meas_full_state = np.hstack((pos, vel, acc_world))
+            self._test_slide_object_correction_in_simulation(meas_full_state)
+
+        # send to controller
+        self.low_state.pos_ob[:] = self.slide_object_kf.x[:3]
+        self.low_state.quat_ob[:] = self.vicon_slide_object_quat  # use directly
+        self.low_state.vel_ob[:] = self.slide_object_kf.x[3:6]
+        self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world  # use directly
+        # display as what the controller sees
+        self.mj_data.qpos[15:18] = self.low_state.pos_ob
+        self.mj_data.qpos[18:22] = self.low_state.quat_ob
+        self.mj_data.qvel[14:17] = self.low_state.vel_ob
+        self.mj_data.qvel[17:20] = self.low_state.omega_ob
+        
+
+    # def lcm_state_handler(self, channel, data):
+    #     if self.mj_data is None:
+    #         return
+
+    #     super().lcm_state_handler(channel, data)
+
+    def _vicon_slide_object_callback(self, msg: Odometry) -> None:
+        stamp = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
+        clock_now = self.vicon_ros2_client.node.get_clock().now()
+        now_sec = clock_now.nanoseconds * 1e-9
+        dt = 0.0 if stamp <= 0 else max(0.0, now_sec - stamp)
+
+        pos_msg = msg.pose.pose.position
+        pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
+        quat_msg = msg.pose.pose.orientation
+        quat = Quaternion(quat_msg.w, quat_msg.x, quat_msg.y, quat_msg.z)
+        R_body_to_world = quat_to_rot(quat)
+
+        twist_msg = msg.twist.twist
+        vel_body = np.array([twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z], dtype=float)
+        vel_world = R_body_to_world @ vel_body
+        omega_body = np.array([twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z], dtype=float)
+        omega_world = R_body_to_world @ omega_body
+
+        if not self.slide_object_use_kf:
+            self.low_state.pos_ob = self.vicon_slide_object_pos = pos
+            self.low_state.quat_ob = self.vicon_slide_object_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.low_state.vel_ob = self.vicon_slide_object_lin_vel_world[:3] = vel_world
+            self.low_state.omega_ob = self.vicon_slide_object_ang_omega_world[:3] = omega_world
+            return
+
+        acc_world = np.zeros(3, dtype=float) # assume zero acceleration
+
+        with self.vicon_lock:
+            acc_est = acc_world
+            pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            vel_now = vel_world + acc_est * dt
+            meas_full_state = np.hstack((pos_now, vel_now, acc_est))
+
+            self.vicon_slide_object_pos = pos_now
+            self.vicon_slide_object_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_slide_object_lin_vel_world[:3] = vel_now
+            self.vicon_slide_object_ang_omega_world[:3] = omega_world
+
+            self.slide_object_kf.correct(meas_full_state)
+
+    def _test_slide_object_correction_in_simulation(self, meas: np.ndarray):
+        dt = 0.0  # change manually if needed
+        quat = Quaternion(*self.low_state.quat_ob)
+        R_body_to_world = quat_to_rot(quat)
+
+        pos = np.array(meas[:3], dtype=float)
+        vel_world = np.array(meas[3:6], dtype=float)
+        omega_world = np.array(self.low_state.omega_ob[:3], dtype=float)
+        acc_world = np.array(meas[6:9], dtype=float)
+
+        with self.vicon_lock:
+            acc_est = acc_world
+            pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            vel_now = vel_world + acc_est * dt
+            meas_full_state = np.hstack((pos_now, vel_now, acc_est))
+
+            self.vicon_slide_object_pos = pos_now
+            self.vicon_slide_object_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_slide_object_lin_vel_world[:3] = vel_now
+            self.vicon_slide_object_ang_omega_world[:3] = omega_world
+
+            self.slide_object_kf.correct(meas_full_state)
 
     def mpc_command_handler(self, channel, data):
         if self.mj_data == None:
@@ -99,8 +215,7 @@ class SlidingBridge(Lcm2MujocoBridge):
 
     def register_low_cmd_subscriber(self, topic):
         # Run superclass method
-        super().register_low_cmd_subscriber(topic)
+        Lcm2MujocoBridge.register_low_cmd_subscriber(self, topic)
         # Register additional MPC command subscriber
         temp = self.lc.subscribe("sliding_plan", self.mpc_command_handler)
         temp.set_queue_capacity(1)
-        

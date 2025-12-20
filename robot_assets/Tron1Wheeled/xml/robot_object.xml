@@ -33,7 +33,7 @@
         <texture name="texplane" type="2d" builtin="checker" rgb1="0.35 0.35 0.35" rgb2="0.55 0.55 0.55" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
         <material name="matplane" reflectance="0.0" texture="texplane" texrepeat="1 1" texuniform="true"/>
     </asset>
-        <option timestep="0.001"/>
+        <option timestep="0.001" noslip_iterations="10"/>
 
     <keyframe>
         <!-- only robot stand up -->

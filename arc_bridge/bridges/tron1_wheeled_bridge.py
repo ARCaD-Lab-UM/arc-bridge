@@ -9,8 +9,10 @@ import pinocchio as pin
 from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, Tron1WheeledFloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
 from .lcm2mujuco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t, tron1_wheeled_plan_t
+from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 from arc_bridge.utils import *
-from .tron1_vicon_ros2_client import ViconRos2Client
+from .vicon_ros2_client import ViconRos2Client
+
 
 class Tron1WheeledBridge(Lcm2MujocoBridge):
     def __init__(self, mj_model, mj_data, config):
@@ -24,10 +26,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
+        self.vicon_ros2_client = None
         if self.in_replay_mode:
             self.vicon_ros2_client = ViconRos2Client()
-            self.vicon_ros2_client.register_odom_callback(self._handle_vicon_odom)
             self.vicon_ros2_client.start()
+            self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
 
         # Override motor offsets (rad)
         self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
@@ -82,6 +85,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_quat = np.eye(3) # to store the torso to global rotation using quat(vicon) orientation
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
         self.only_use_vicon_for_kf = True
+
         # Replay buffers to avoid races between LCM and simulation threads
         self._rx_state_position = np.zeros(3)
         self._rx_state_velocity = np.zeros(3)
@@ -350,7 +354,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         return qj_legs_ik
 
-    def _handle_vicon_odom(self, msg: Odometry) -> None:
+    def _vicon_tron1_callback(self, msg: Odometry) -> None:
         stamp = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
         clock_now = self.vicon_ros2_client.node.get_clock().now()
         now_sec = clock_now.nanoseconds * 1e-9
@@ -482,6 +486,3 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Register additional MPC command subscriber
         temp = self.lc.subscribe("tron1_wheeled_plan", self.mpc_command_handler)
         temp.set_queue_capacity(1)
-
-
-
