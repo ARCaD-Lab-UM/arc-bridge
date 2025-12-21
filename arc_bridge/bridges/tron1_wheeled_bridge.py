@@ -37,7 +37,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                                        0, 0.53, -0.55-0.54, 0])
         
         # Visualization for the KF output (the red box and the blue arrow)
-        self.vis_se = False # override default flag
+        self.vis_se = True # override default flag
         self.vis_pos_est = np.array([0, 0, 0.75]) # initial pos (height)
         self.vis_vel_est = np.zeros(3)
         self.vis_R_body = np.eye(3)
@@ -175,7 +175,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # update the R torso global (based on vicon quaternion)
         self.R_torso_global_quat = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
-        # self.update_state_estimation()
+        self.update_state_estimation()
 
     def lcm_state_handler(self, channel, data):
         if self.mj_data == None:
