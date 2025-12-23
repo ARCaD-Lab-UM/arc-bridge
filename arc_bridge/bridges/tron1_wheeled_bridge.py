@@ -175,6 +175,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # update the R torso global (based on vicon quaternion)
         self.R_torso_global_quat = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
+        # update the R torso global (based on IMU rpy)
+        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
+        self.R_torso_global_rpy = quat_to_rot(quat_from_imu)
+
         self.update_state_estimation()
 
     def lcm_state_handler(self, channel, data):
@@ -205,10 +209,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._rx_state_position[:] = msg.position # copy because of write from another thread
         self._rx_state_velocity[:] = msg.velocity
         self._rx_state_available = True
-
-        # update the R torso global (based on IMU rpy)
-        quat_from_imu = rpy_to_quat(np.array(self.low_state.rpy, dtype=float))
-        self.R_torso_global_rpy = quat_to_rot(quat_from_imu)
 
     def get_torso_height_and_velocity_meas_fk(self):
         #  calculate the kinematics in body frame first

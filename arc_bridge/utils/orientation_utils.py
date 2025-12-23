@@ -1,3 +1,4 @@
+import math
 import numpy as np
 
 DTYPE = np.float32
@@ -106,3 +107,35 @@ def rot_coord(axis:str, theta:float) -> np.ndarray:
         R = np.array([c, s, 0, -s, c, 0, 0, 0, 1], dtype=DTYPE).reshape((3, 3))
 
     return R.T
+
+
+def wrap_to_pi_format(angle: float) -> float:
+    """wrap angle to [-pi, pi]
+
+    Args:
+        angle (float): radian angle
+
+    Returns:
+        float: radian angle in [-pi, pi]
+    """
+    min_value, max_value = -math.pi, math.pi
+    span = max_value - min_value  # 2PI
+    y = min_value + (angle - min_value) % span # in [min_value, max_value)
+    # note that when angle is max_value + k*span, loop constrain version returns max_value; but loop-func gives min_value
+    return y
+
+
+def wrap_to_2pi_format(angle: float) -> float:
+    """wrap angle to [0, 2pi]
+
+    Args:
+        angle (float): radian angle
+
+    Returns:
+        float: radian angle in [0, 2pi]
+    """
+    min_value, max_value = 0, 2.0 * math.pi
+    span = max_value - min_value  # 2PI
+    y = min_value + (angle - min_value) % span # in [min_value, max_value)
+    # note that when angle is max_value + k*span, loop constrain version returns max_value; but loop-func gives min_value
+    return y
