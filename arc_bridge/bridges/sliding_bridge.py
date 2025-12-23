@@ -233,10 +233,15 @@ class SlidingBridge(Tron1WheeledBridge):
 
         self.vis_traj = True
 
-
     def register_low_cmd_subscriber(self, topic):
         # Run superclass method
         Lcm2MujocoBridge.register_low_cmd_subscriber(self, topic)
         # Register additional MPC command subscriber
         temp = self.lc.subscribe("sliding_plan", self.mpc_command_handler)
         temp.set_queue_capacity(1)
+
+    def register_low_state_subscriber(self, topic=None):
+        if topic is None:
+            topic = self.topic_state
+        self.low_state_suber = self.lc.subscribe("tron1_wheeled_state", self.lcm_state_handler)
+        self.low_state_suber.set_queue_capacity(1)

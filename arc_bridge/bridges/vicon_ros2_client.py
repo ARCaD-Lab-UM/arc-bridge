@@ -10,7 +10,8 @@ from nav_msgs.msg import Odometry
 class ViconRos2Client:
     """Subscribe to Vicon topics exposed via ROS2."""
 
-    def __init__(self):
+    def __init__(self, node_name: str = "vicon_listener"):
+        self.node_name = node_name
         self.node = None
         self.thread: Optional[Thread] = None
         self._started = False
@@ -24,7 +25,7 @@ class ViconRos2Client:
             return
 
         rclpy.init(args=None)
-        self.node = rclpy.create_node("arc_bridge_vicon_listener")
+        self.node = rclpy.create_node(self.node_name)
 
         self.thread = Thread(target=rclpy.spin, args=(self.node,), daemon=True)
         self.thread.start()

@@ -28,7 +28,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
         self.vicon_ros2_client = None
         if self.in_replay_mode:
-            self.vicon_ros2_client = ViconRos2Client()
+            self.vicon_ros2_client = ViconRos2Client(node_name="arc_bridge_vicon_listener")
             self.vicon_ros2_client.start()
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
 
