@@ -22,7 +22,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vicon_lock = Lock()
         self.vicon_tron1_pos = np.zeros(3, dtype=float)
         self.vicon_tron1_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
-        self.vicon_tron1_lin_vel_world = np.zeros(6, dtype=float)
+        self.vicon_tron1_lin_vel_world = np.zeros(3, dtype=float)
+        self.vicon_tron1_ang_omega_world = np.zeros(3, dtype=float)
+        self.T_vicon_tron1_meas_to_center = np.eye(4, dtype=float)
 
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
@@ -53,10 +55,14 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.height_init = 0.7
         self.dt_estimator = 0.001 # 1kHz
         # Process noise (px, py, pz, vx, vy, vz, ax, ay, az)
-        KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
         # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
-        KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
-        self.KF = Tron1WheeledFloatingBaseLinearStateEstimator(self.dt_estimator, KF_Q, KF_R, self.height_init)
+        self.KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.KF = Tron1WheeledFloatingBaseLinearStateEstimator(self.dt_estimator, self.KF_Q, self.KF_R, self.height_init)
+        # heuristic measurement noise scaling based on vicon delay; R = (1 + alpha * dt) * R0 only on pos and vel
+        self.vicon_delay_alpha = 20.0
+        self.vicon_delay_scale_max = 10.0
+        self.init_const_KF_R = self.KF_R.copy()  # store the initial R
 
         # kinematics params
         self.l1 = 0.077
@@ -84,7 +90,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_rpy = np.eye(3) # to store the torso to global rotation using rpy(imu) orientation
         self.R_torso_global_quat = np.eye(3) # to store the torso to global rotation using quat(vicon) orientation
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
-        self.only_use_vicon_for_kf = True
+        self.kf_mode = "vicon_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf"
 
         # Replay buffers to avoid races between LCM and simulation threads
         self._rx_state_position = np.zeros(3)
@@ -118,48 +124,49 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 print(f"IMU calibration done. Acc bias in body frame: {self.imu_acc_bias_body}")
                 print(f"Gyro omega bias in body frame: {self.omega_bias_body}")
         else:
-            if self.only_use_vicon_for_kf:
-                if self.in_replay_mode:
-                    # in replay mode, correction happens in vicon callback
-                    with self.vicon_lock:
-                        self.KF.predict(u=np.zeros(1))
-                else:
-                    self.KF.predict(u=np.zeros(1))
-                    # use ground truth position/velocity for testing
-                    pos = np.array(self.low_state.position[:3], dtype=float)
-                    vel = np.array(self.low_state.velocity[:3], dtype=float)
-                    meas_full_state = np.hstack((pos, vel, acc_world)) # add acc measurement
-                    self._test_vicon_correction_in_simulation(meas_full_state)
+            if self.kf_mode == "vicon_no_kf":
+                # visulization when no KF - UNCOMMENT this and COMMENT above to use
+                self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
+                self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
+                self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
             else:
-                self.KF.predict(u=np.zeros(1))
-                # use the joint encoder and our FK for correction
-                meas = self.get_torso_height_and_velocity_meas_fk()
-                meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
-                self.KF.correct(meas_full_state)
+                if self.kf_mode == "vicon_with_kf":
+                    if self.in_replay_mode:
+                        # in replay mode, correction happens in vicon callback
+                        with self.vicon_lock:
+                            self.KF.predict(u=np.zeros(1))
+                    else:
+                        self.KF.predict(u=np.zeros(1))
+                        # use ground truth position/velocity for testing
+                        pos = np.array(self.low_state.position[:3], dtype=float)
+                        vel = np.array(self.low_state.velocity[:3], dtype=float)
+                        meas_full_state = np.hstack((pos, vel, acc_world)) # add acc measurement
+                        self._test_vicon_correction_in_simulation(meas_full_state)
+                elif self.kf_mode == "fk_with_kf":
+                    self.KF.predict(u=np.zeros(1))
+                    # use the joint encoder and our FK for correction
+                    meas = self.get_torso_height_and_velocity_meas_fk()
+                    meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
+                    self.KF.correct(meas_full_state)
 
-            # send to controller
-            self.low_state.position[:] = self.KF.x[:3]
-            self.low_state.velocity[:] = self.KF.x[3:6]
+                # send to controller
+                self.low_state.position[:] = self.KF.x[:3]
+                self.low_state.velocity[:] = self.KF.x[3:6]
 
-            # visualization of the state estimation (red box and blue arrow)
-            self.vis_pos_est = self.KF.x[:3]
-            self.vis_vel_est = self.KF.x[3:6]
-            self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
-            self.vel_body = self.R_torso_global_rpy.T @ self.KF.x[3:6] # R_body_to_world
+                # visualization of the state estimation (red box and blue arrow)
+                self.vis_pos_est = self.KF.x[:3]
+                self.vis_vel_est = self.KF.x[3:6]
+                self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+                self.vel_body = self.R_torso_global_rpy.T @ self.KF.x[3:6] # R_body_to_world
 
-            # # visualization dt later
-            # dt = 0.1 # change manually if needed
-            # acc_est = acc_world
-            # pos_now = self.KF.x[:3] + self.KF.x[3:6] * dt + 0.5 * acc_est * dt * dt
-            # vel_now = self.KF.x[3:6] + acc_est * dt
-            # self.vis_pos_est = pos_now
-            # self.vis_vel_est = vel_now
-            # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
-
-            # # visulization when no KF - UNCOMMENT this and COMMENT above to use
-            # self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
-            # self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
-            # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+                # # visualization dt later
+                # dt = 0.1 # change manually if needed
+                # acc_est = acc_world
+                # pos_now = self.KF.x[:3] + self.KF.x[3:6] * dt + 0.5 * acc_est * dt * dt
+                # vel_now = self.KF.x[3:6] + acc_est * dt
+                # self.vis_pos_est = pos_now
+                # self.vis_vel_est = vel_now
+                # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
 
     def parse_robot_specific_low_state(self):
         # This function is called in simulation thread
@@ -354,6 +361,35 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         return qj_legs_ik
 
+    def _apply_vicon_center_transform(self, pos, quat, vel_world, omega_world, T_meas_to_center):
+        R_body_to_world = quat_to_rot(quat)
+        R_offset = T_meas_to_center[:3, :3]
+        t_offset = T_meas_to_center[:3, 3]
+        r_world = R_body_to_world @ t_offset
+        pos_center = pos + r_world
+        vel_center = vel_world + np.cross(omega_world, r_world)
+        if np.array_equal(R_offset, np.eye(3)):
+            R_center_world = R_body_to_world
+            quat_center = quat
+        else:
+            R_center_world = R_body_to_world @ R_offset
+            quat_center = rot_to_quat(R_center_world)
+        return pos_center, quat_center, R_center_world, vel_center, omega_world
+    
+    def _get_delay_scale(self, dt: float) -> float:
+        """Based on vicon delay dt (in s), calculate the scaling factor for measurement noise R.
+        scale = 1 + alpha * dt, capped at vicon_delay_scale_max.
+
+        Returns:
+            float: scaling factor
+        """
+        alpha = self.vicon_delay_alpha
+        scale = 1.0 + alpha * dt
+        if self.vicon_delay_scale_max is not None:
+            scale = min(scale, self.vicon_delay_scale_max)
+        return scale
+
+
     def _vicon_tron1_callback(self, msg: Odometry) -> None:
         stamp = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
         clock_now = self.vicon_ros2_client.node.get_clock().now()
@@ -369,7 +405,22 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         twist_msg = msg.twist.twist
         vel_body = np.array([twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z], dtype=float)
         vel_world = R_body_to_world @ vel_body
-        
+        omega_body = np.array([twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z], dtype=float)
+        omega_world = R_body_to_world @ omega_body
+
+        # apply the center transform
+        pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world, omega_world, self.T_vicon_tron1_meas_to_center)
+
+        if self.kf_mode == "vicon_no_kf":
+            self.vicon_tron1_pos[:] = pos
+            self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_tron1_lin_vel_world[:] = vel_world
+            self.vicon_tron1_ang_omega_world[:] = omega_world
+            # send to controller
+            self.low_state.position[:] = self.vicon_tron1_pos
+            self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
+            return
+
         if self.calibrated and self._rx_state_available:
             acc_body = np.array(self.low_state.acceleration, dtype=float)
             acc_world = R_body_to_world @ acc_body - self.gravity_add_bias
@@ -382,11 +433,16 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             vel_now = vel_world + acc_est * dt
             meas_full_state = np.hstack((pos_now, vel_now, acc_est))
 
-            self.vicon_tron1_pos = pos_now
-            self.vicon_tron1_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
-            self.vicon_tron1_lin_vel_world[:3] = vel_now
+            self.vicon_tron1_pos[:] = pos_now
+            self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_tron1_lin_vel_world[:] = vel_now
+            self.vicon_tron1_ang_omega_world[:] = omega_world
 
-            # TODO: adjust Q and R based on dt
+            # Scale the measurement noise R based on delay dt
+            scale = self._get_delay_scale(dt)
+            self.KF.R[:, :] = self.init_const_KF_R
+            self.KF.R[0:6, 0:6] *= scale  # only scale pos and vel
+
             self.KF.correct(meas_full_state)
 
     def _test_vicon_correction_in_simulation(self, meas: np.ndarray):
@@ -396,6 +452,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         pos = np.array(meas[:3], dtype=float)
         vel_world = np.array(meas[3:6], dtype=float)
+        omega_world = np.array(self.low_state.omega, dtype=float)
         acc_world = np.array(meas[6:9], dtype=float)
 
         with self.vicon_lock:
@@ -404,11 +461,17 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             vel_now = vel_world + acc_est * dt
             meas_full_state = np.hstack((pos_now, vel_now, acc_est))
 
-            self.vicon_tron1_pos = pos_now
-            self.vicon_tron1_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
-            self.vicon_tron1_lin_vel_world[:3] = vel_now
+            self.vicon_tron1_pos[:] = pos_now
+            self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_tron1_lin_vel_world[:] = vel_now
+            self.vicon_tron1_ang_omega_world[:] = omega_world
 
-            # TODO: adjust Q and R based on dt
+            # Scale the measurement noise R based on delay dt
+            scale = self._get_delay_scale(dt)
+            # print(f"Simulation Vicon correction with dt={dt:.4f}s, scale={scale:.2f}")
+            self.KF.R[:, :] = self.init_const_KF_R
+            self.KF.R[0:6, 0:6] *= scale  # only scale pos and vel
+
             self.KF.correct(meas_full_state)
 
     def mpc_command_handler(self, channel, data):

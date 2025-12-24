@@ -18,6 +18,7 @@ class SlidingBridge(Tron1WheeledBridge):
         self.vicon_slide_object_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
         self.vicon_slide_object_lin_vel_world = np.zeros(3, dtype=float)
         self.vicon_slide_object_ang_omega_world = np.zeros(3, dtype=float)
+        self.T_vicon_slide_object_meas_to_center = np.eye(4, dtype=float)
         if self.in_replay_mode and self.vicon_ros2_client is not None:
             self.vicon_ros2_client.subscribe_slide_object(self._vicon_slide_object_callback, topic="/odometry/slide_object")
 
@@ -101,11 +102,19 @@ class SlidingBridge(Tron1WheeledBridge):
         omega_body = np.array([twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z], dtype=float)
         omega_world = R_body_to_world @ omega_body
 
+        # apply the center transform
+        pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world,omega_world, self.T_vicon_slide_object_meas_to_center)
+
         if not self.slide_object_use_kf:
-            self.low_state.pos_ob = self.vicon_slide_object_pos = pos
-            self.low_state.quat_ob = self.vicon_slide_object_quat = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
-            self.low_state.vel_ob = self.vicon_slide_object_lin_vel_world[:3] = vel_world
-            self.low_state.omega_ob = self.vicon_slide_object_ang_omega_world[:3] = omega_world
+            self.vicon_slide_object_pos[:] = pos
+            self.vicon_slide_object_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
+            self.vicon_slide_object_lin_vel_world[:] = vel_world
+            self.vicon_slide_object_ang_omega_world[:] = omega_world
+
+            self.low_state.pos_ob[:] = self.vicon_slide_object_pos
+            self.low_state.quat_ob[:] = self.vicon_slide_object_quat
+            self.low_state.vel_ob[:] = self.vicon_slide_object_lin_vel_world
+            self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world
             return
 
         acc_world = np.zeros(3, dtype=float) # assume zero acceleration
