@@ -84,6 +84,7 @@ class Lcm2MujocoBridge:
 
         # State estimator visualization
         self.vis_se = False
+        self.vis_traj = False
 
     def _init_delay_buffer(self, source, delay_steps):
         length = max(delay_steps + 1, 1)
