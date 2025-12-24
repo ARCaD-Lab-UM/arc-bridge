@@ -49,7 +49,7 @@ class KalmanFilter:
 
     def correct(self, y):
         # Compute the Kalman gain
-        K = self.P @ self.C.T @ np.linalg.inv(self.C @ self.P @ self.C.T + self.R)
+        K = self.P @ self.C.T @ np.linalg.pinv(self.C @ self.P @ self.C.T + self.R)
         # Correct estimation
         self.x = self.x + K @ (y - self.C @ self.x)
         # Update measurement error covariance
