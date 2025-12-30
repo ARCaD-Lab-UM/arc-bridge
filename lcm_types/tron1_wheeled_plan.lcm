@@ -12,4 +12,6 @@ struct tron1_wheeled_plan_t
     double   dqd_trb[n_horizon][14];
 
     double   lambda_des[n_horizon][6];
+
+    boolean  is_solved; // Solution status of MPC
 }
