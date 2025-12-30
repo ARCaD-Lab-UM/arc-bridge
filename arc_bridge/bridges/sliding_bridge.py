@@ -103,7 +103,7 @@ class SlidingBridge(Tron1WheeledBridge):
         omega_world = R_body_to_world @ omega_body
 
         # apply the center transform
-        pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world,omega_world, self.T_vicon_slide_object_meas_to_center)
+        # pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world,omega_world, self.T_vicon_slide_object_meas_to_center)
 
         if not self.slide_object_use_kf:
             self.vicon_slide_object_pos[:] = pos

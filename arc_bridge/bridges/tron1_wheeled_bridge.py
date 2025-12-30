@@ -409,7 +409,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         omega_world = R_body_to_world @ omega_body
 
         # apply the center transform
-        pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world, omega_world, self.T_vicon_tron1_meas_to_center)
+        # pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world, omega_world, self.T_vicon_tron1_meas_to_center)
 
         if self.kf_mode == "vicon_no_kf":
             self.vicon_tron1_pos[:] = pos
