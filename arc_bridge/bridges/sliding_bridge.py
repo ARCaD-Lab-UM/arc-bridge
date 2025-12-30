@@ -121,7 +121,8 @@ class SlidingBridge(Tron1WheeledBridge):
 
         with self.vicon_lock:
             acc_est = acc_world
-            pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            # pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            pos_now = pos + (vel_world + acc_est * dt) * dt  # semi-implicit Euler
             vel_now = vel_world + acc_est * dt
             meas_full_state = np.hstack((pos_now, vel_now, acc_est))
 
@@ -144,7 +145,8 @@ class SlidingBridge(Tron1WheeledBridge):
 
         with self.vicon_lock:
             acc_est = acc_world
-            pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            # pos_now = pos + vel_world * dt + 0.5 * acc_est * dt * dt
+            pos_now = pos + (vel_world + acc_est * dt) * dt  # semi-implicit Euler
             vel_now = vel_world + acc_est * dt
             meas_full_state = np.hstack((pos_now, vel_now, acc_est))
 

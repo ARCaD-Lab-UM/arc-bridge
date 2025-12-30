@@ -11,9 +11,15 @@ class Tron1WheeledFloatingBaseLinearStateEstimator(KalmanFilter):
 
         # construct A matrix
         A = np.eye(dim_state)
+
         # p(k+1) = p + v dt + 0.5 a dt^2
         A[0:3, 3:6] = dt * np.eye(3)
         A[0:3, 6:9] = 0.5 * dt**2 * np.eye(3)
+
+        # p(k+1) = p + v dt + a dt^2 uses semi-implicit Euler
+        A[0:3, 3:6] = dt * np.eye(3)
+        A[0:3, 6:9] = dt**2 * np.eye(3)
+
         # v(k+1) = v + a dt
         A[3:6, 6:9] = dt * np.eye(3)
         # a(k+1) = a is included in identity
