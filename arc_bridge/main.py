@@ -247,35 +247,35 @@ def main():
                         bridge.vis_wheel_pos[h, leg] + bridge.vis_grf[h, leg] * 0.005
                     )
                     geom_idx += 1
+                if bridge.vis_object_traj:            
+                    # Draw object position as a box
+                    mujoco.mjv_initGeom(
+                        viewer.user_scn.geoms[geom_idx],
+                        type=mujoco.mjtGeom.mjGEOM_BOX,
+                        size=np.array([0.1, 0.1, 0.02]),
+                        pos=bridge.vis_object_pos[h],
+                        mat=np.eye(3).flatten(),
+                        rgba=[1.0, 0.5, 0.0, alpha]  # Orange
+                    )
+                    geom_idx += 1
 
-                # Draw object position as a box
-                mujoco.mjv_initGeom(
-                    viewer.user_scn.geoms[geom_idx],
-                    type=mujoco.mjtGeom.mjGEOM_BOX,
-                    size=np.array([0.1, 0.1, 0.02]),
-                    pos=bridge.vis_object_pos[h],
-                    mat=np.eye(3).flatten(),
-                    rgba=[1.0, 0.5, 0.0, alpha]  # Orange
-                )
-                geom_idx += 1
-
-                # Draw object velocity as an arrow
-                mujoco.mjv_initGeom(
-                    viewer.user_scn.geoms[geom_idx],
-                    type=mujoco.mjtGeom.mjGEOM_ARROW,
-                    size=np.zeros(3),
-                    pos=np.zeros(3),
-                    mat=np.zeros(9),
-                    rgba=[0.0, 0.8, 1.0, alpha]  # Cyan
-                )
-                mujoco.mjv_connector(
-                    viewer.user_scn.geoms[geom_idx],
-                    mujoco.mjtGeom.mjGEOM_ARROW,
-                    0.015,
-                    bridge.vis_object_pos[h],
-                    bridge.vis_object_pos[h] + bridge.vis_object_vel[h] * 0.3
-                )
-                geom_idx += 1
+                    # Draw object velocity as an arrow
+                    mujoco.mjv_initGeom(
+                        viewer.user_scn.geoms[geom_idx],
+                        type=mujoco.mjtGeom.mjGEOM_ARROW,
+                        size=np.zeros(3),
+                        pos=np.zeros(3),
+                        mat=np.zeros(9),
+                        rgba=[0.0, 0.8, 1.0, alpha]  # Cyan
+                    )
+                    mujoco.mjv_connector(
+                        viewer.user_scn.geoms[geom_idx],
+                        mujoco.mjtGeom.mjGEOM_ARROW,
+                        0.015,
+                        bridge.vis_object_pos[h],
+                        bridge.vis_object_pos[h] + bridge.vis_object_vel[h] * 0.3
+                    )
+                    geom_idx += 1
             
             viewer.user_scn.ngeom = geom_idx
 

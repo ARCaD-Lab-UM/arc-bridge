@@ -46,6 +46,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vis_box_size = [0.1, 0.2, 0.08]
         self.vel_body = np.zeros(3) # body velocity in body frame
 
+        #  visualization for the MPC predicted trajectory
+        self.vis_object_traj = False
         self.vis_traj = False
         self.vis_wheel_pos = None
         self.vis_wheel_vel = None

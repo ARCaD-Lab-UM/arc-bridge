@@ -243,6 +243,7 @@ class SlidingBridge(Tron1WheeledBridge):
         self.vis_object_vel = desired_object_vel
 
         self.vis_traj = True
+        self.vis_object_traj = True
 
     def register_low_cmd_subscriber(self, topic):
         # Run superclass method
