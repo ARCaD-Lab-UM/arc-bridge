@@ -94,16 +94,19 @@ class SlidingBridge(Tron1WheeledBridge):
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
         quat_msg = msg.pose.pose.orientation
         quat = Quaternion(quat_msg.w, quat_msg.x, quat_msg.y, quat_msg.z)
-        R_body_to_world = quat_to_rot(quat)
 
         twist_msg = msg.twist.twist
         vel_body = np.array([twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z], dtype=float)
-        vel_world = R_body_to_world @ vel_body
         omega_body = np.array([twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z], dtype=float)
-        omega_world = R_body_to_world @ omega_body
+        
+        R_body_to_world = quat_to_rot(quat)  # vicon body to world
+        # apply the center transform on position and orientation
+        pos, _, _ = self._transform_body_pos_quat_to_center(pos, quat, self.T_vicon_tron1_meas_to_center)
+        # apply the center transform on body twist
+        # vel_body, omega_body = self._transform_body_twist_to_center(vel_body, omega_body, self.T_vicon_tron1_meas_to_center)
 
-        # apply the center transform
-        # pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world,omega_world, self.T_vicon_slide_object_meas_to_center)
+        vel_world = R_body_to_world @ vel_body
+        omega_world = R_body_to_world @ omega_body
 
         if not self.slide_object_use_kf:
             self.vicon_slide_object_pos[:] = pos

@@ -24,7 +24,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.vicon_tron1_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
         self.vicon_tron1_lin_vel_world = np.zeros(3, dtype=float)
         self.vicon_tron1_ang_omega_world = np.zeros(3, dtype=float)
+        # Transformation from Vicon Tron1 measurement frame to robot center frame; center coord relative to measurement coord
         self.T_vicon_tron1_meas_to_center = np.eye(4, dtype=float)
+        self.T_vicon_tron1_meas_to_center[:3, 3] = np.array([0.0, 0.0, 0.015])
 
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
@@ -363,21 +365,32 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         return qj_legs_ik
 
-    def _apply_vicon_center_transform(self, pos, quat, vel_world, omega_world, T_meas_to_center):
-        R_body_to_world = quat_to_rot(quat)
-        R_offset = T_meas_to_center[:3, :3]
-        t_offset = T_meas_to_center[:3, 3]
-        r_world = R_body_to_world @ t_offset
-        pos_center = pos + r_world
-        vel_center = vel_world + np.cross(omega_world, r_world)
-        if np.array_equal(R_offset, np.eye(3)):
-            R_center_world = R_body_to_world
-            quat_center = quat
-        else:
-            R_center_world = R_body_to_world @ R_offset
-            quat_center = rot_to_quat(R_center_world)
-        return pos_center, quat_center, R_center_world, vel_center, omega_world
-    
+    def _transform_body_pos_quat_to_center(self, pos, quat, T_meas_to_center):
+        # T_meas_to_center: center coord relative to meas coord
+        # T represents coordinate transformation
+        T_world_to_meas = np.eye(4, dtype=float)
+        T_world_to_meas[:3, :3] = quat_to_rot(quat)  # meas coord relative to world coord
+        T_world_to_meas[:3, 3] = pos
+
+        # combine transforms: center coord relative to world coord
+        T_world_to_center = T_world_to_meas @ T_meas_to_center
+
+        R_center = T_world_to_center[:3, :3]  # center coord relative to world coord - rotation
+        pos_center = T_world_to_center[:3, 3] # center coord relative to world coord - position
+        quat_center = rot_to_quat(R_center)
+
+        return pos_center, quat_center, R_center
+
+    def _transform_body_twist_to_center(self, vel_body, omega_body, T_meas_to_center):
+        """Only consider rotation part of the transform as approximation for vel/omega conversion"""
+        R_center_to_meas_body = np.asarray(T_meas_to_center[:3, :3], dtype=float)  # center coord relative to meas coord - rotation
+
+        # lin/ang vel in center body frame
+        vel_center = R_center_to_meas_body.T @ vel_body
+        omega_center = R_center_to_meas_body.T @ omega_body
+
+        return vel_center, omega_center
+
     def _get_delay_scale(self, dt: float) -> float:
         """Based on vicon delay dt (in s), calculate the scaling factor for measurement noise R.
         scale = 1 + alpha * dt, capped at vicon_delay_scale_max.
@@ -391,7 +404,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             scale = min(scale, self.vicon_delay_scale_max)
         return scale
 
-
     def _vicon_tron1_callback(self, msg: Odometry) -> None:
         stamp = float(msg.header.stamp.sec) + float(msg.header.stamp.nanosec) * 1e-9
         clock_now = self.vicon_ros2_client.node.get_clock().now()
@@ -402,16 +414,19 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
         quat_msg = msg.pose.pose.orientation
         quat = Quaternion(quat_msg.w, quat_msg.x, quat_msg.y, quat_msg.z)
-        R_body_to_world = quat_to_rot(quat)
 
         twist_msg = msg.twist.twist
         vel_body = np.array([twist_msg.linear.x, twist_msg.linear.y, twist_msg.linear.z], dtype=float)
-        vel_world = R_body_to_world @ vel_body
         omega_body = np.array([twist_msg.angular.x, twist_msg.angular.y, twist_msg.angular.z], dtype=float)
-        omega_world = R_body_to_world @ omega_body
+        
+        R_body_to_world = quat_to_rot(quat)  # vicon body to world
+        # apply the center transform on position and orientation
+        pos, _, _ = self._transform_body_pos_quat_to_center(pos, quat, self.T_vicon_tron1_meas_to_center)
+        # apply the center transform on body twist
+        # vel_body, omega_body = self._transform_body_twist_to_center(vel_body, omega_body, self.T_vicon_tron1_meas_to_center)
 
-        # apply the center transform
-        # pos, quat, R_body_to_world, vel_world, omega_world = self._apply_vicon_center_transform(pos, quat, vel_world, omega_world, self.T_vicon_tron1_meas_to_center)
+        vel_world = R_body_to_world @ vel_body
+        omega_world = R_body_to_world @ omega_body
 
         if self.kf_mode == "vicon_no_kf":
             self.vicon_tron1_pos[:] = pos

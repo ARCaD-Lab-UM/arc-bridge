@@ -42,16 +42,14 @@ class Daemon:
     Tracks online/offline status based on reload timing and optional data checks.
 
     Example:
-        system = DaemonSystem()
-        spy = DaemonSpy(window_size=10)
         config = DaemonConfig(
             set_online_jitter_time_ms=200,
             set_offline_time_ms=1000,
             owner_id="motor-1",
         )  # optional callback etc. can be provided in config
-        daemon = Daemon(config, system=system, spy=spy)
+        daemon = Daemon(config)
         daemon.reload()  # feed the watchdog when new data arrives
-        system.update_all()  # call periodically (e.g., in a loop)
+        daemon.update()  # call periodically (e.g., in a loop)
     """
     # static class variable
     TIME_RESOLUTION_HZ: ClassVar[int] = 1000
@@ -61,8 +59,6 @@ class Daemon:
         config: DaemonConfig,
         *,
         time_provider: Optional[Callable[[], int]] = None,  # function that provides current time in milliseconds. None to use default.
-        system: Optional[DaemonSystem] = None,  # daemon system (a set of daemons) to attach to. None for no system.
-        auto_register: bool = True,  # True will auto register to the system if provided.
         spy: Optional[DaemonSpy] = None,  # rolling window stats helper; None to disable.
     ) -> None:
         if config.set_online_jitter_time_ms < 0 or config.set_offline_time_ms < 0:
@@ -89,44 +85,14 @@ class Daemon:
         self.min_delta_ms = 0  # rolling window min delta; 0 when spy disabled
         self.max_delta_ms = 0  # rolling window max delta; 0 when spy disabled
 
-        # set up time provider and daemon system
+        # set up time provider
         self._time_provider = time_provider or _default_time_ms
         self._spy = spy
-        self._system = system
-        if self._system is not None and auto_register:
-            self._system.register(self)
-
-    @property
-    def system(self) -> Optional[DaemonSystem]:
-        """Get the attached daemon system."""
-        return self._system
 
     @property
     def spy(self) -> Optional[DaemonSpy]:
         """Get the attached daemon spy."""
         return self._spy
-
-    def attach_system(self, system: DaemonSystem, *, register: bool = True) -> None:
-        """Attch to a daemon system.
-
-        Args:
-            system (DaemonSystem): daemon system (a list of daemons) to attach to.
-            register (bool, optional): False to not register to the system upon attaching. Defaults to True.
-        """
-        if self._system is system:
-            return
-        if self._system is not None:
-            self._system.unregister(self)
-        self._system = system
-        if register:
-            self._system.register(self)
-
-    def detach_system(self) -> None:
-        """Unregister and detach from a daemon system."""
-        if self._system is None:
-            return
-        self._system.unregister(self)
-        self._system = None
 
     def attach_spy(self, spy: DaemonSpy) -> None:
         """Attach a rolling window spy.
@@ -295,58 +261,3 @@ class DaemonSpy:
             count = len(self._delta_samples)
             self.frequency_hz = (self.TIME_RESOLUTION_HZ * count) / float(total_ms)
 
-
-class DaemonSystem:
-    """Registry for a group of daemon instances.
-
-    Each system maintains its own instance list so multiple watchdog groups
-    remain isolated.
-
-    Example:
-        system = DaemonSystem()
-        a = Daemon(DaemonConfig(50, 200), system=system)
-        b = Daemon(DaemonConfig(50, 200), system=system)
-        system.update_all()
-    """
-    def __init__(self) -> None:
-        self._instances: list[Daemon] = []
-
-    @property
-    def instances(self) -> tuple[Daemon, ...]:
-        """Get all registered daemon instances."""
-        return tuple(self._instances)
-
-    def register(self, instance: Daemon) -> None:
-        """Register a daemon instance to the system.
-
-        Args:
-            instance (Daemon): daemon to be registered.
-        """
-        if instance in self._instances:
-            return
-        self._instances.append(instance)
-
-    def unregister(self, instance: Daemon) -> None:
-        """Unregister a daemon instance from the system.
-
-        Args:
-            instance (Daemon): daemon to be unregistered/removed.
-        """
-        try:
-            self._instances.remove(instance)
-        except ValueError:
-            pass
-
-    def update_all(self, now_ms: Optional[int] = None) -> None:
-        """Background task/function to update all daemons in the system
-
-        Args:
-            now_ms (Optional[int], optional): override time in milliseconds. Defaults to None.
-        """
-        if now_ms is None:
-            for instance in self._instances:
-                instance.update()
-        else:
-            now_ms = int(now_ms)
-            for instance in self._instances:
-                instance.update(now_ms)
