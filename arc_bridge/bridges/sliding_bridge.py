@@ -46,11 +46,6 @@ class SlidingBridge(Tron1WheeledBridge):
 
         if self.slide_object_use_kf:
             self.update_slide_object_state_estimation()
-        else:
-            self.mj_data.qpos[15:18] = self.low_state.pos_ob
-            self.mj_data.qpos[18:22] = self.low_state.quat_ob
-            self.mj_data.qvel[14:17] = self.low_state.vel_ob
-            self.mj_data.qvel[17:20] = self.low_state.omega_ob
 
     def update_slide_object_state_estimation(self):
         if self.in_replay_mode:
@@ -71,11 +66,12 @@ class SlidingBridge(Tron1WheeledBridge):
         self.low_state.quat_ob[:] = self.vicon_slide_object_quat  # use directly
         self.low_state.vel_ob[:] = self.slide_object_kf.x[3:6]
         self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world  # use directly
-        # display as what the controller sees
-        self.mj_data.qpos[15:18] = self.low_state.pos_ob
-        self.mj_data.qpos[18:22] = self.low_state.quat_ob
-        self.mj_data.qvel[14:17] = self.low_state.vel_ob
-        self.mj_data.qvel[17:20] = self.low_state.omega_ob
+        if self.in_replay_mode:
+            # display as what the controller sees
+            self.mj_data.qpos[15:18] = self.low_state.pos_ob
+            self.mj_data.qpos[18:22] = self.low_state.quat_ob
+            self.mj_data.qvel[14:17] = self.low_state.vel_ob
+            self.mj_data.qvel[17:20] = self.low_state.omega_ob
         
 
     # def lcm_state_handler(self, channel, data):

@@ -142,14 +142,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
                 self.low_state.quaternion[:] = self.vicon_tron1_quat
 
-                # display in mujoco viewer
-                self.mj_data.qpos[0] = self.low_state.position[0]
-                self.mj_data.qpos[1] = self.low_state.position[1]
-                self.mj_data.qpos[2] = self.low_state.position[2]
-                self.mj_data.qpos[3] = self.low_state.quaternion[0]
-                self.mj_data.qpos[4] = self.low_state.quaternion[1]
-                self.mj_data.qpos[5] = self.low_state.quaternion[2]
-                self.mj_data.qpos[6] = self.low_state.quaternion[3]
+                if self.in_replay_mode:
+                    # display in mujoco viewer
+                    self.mj_data.qpos[0] = self.low_state.position[0]
+                    self.mj_data.qpos[1] = self.low_state.position[1]
+                    self.mj_data.qpos[2] = self.low_state.position[2]
+                    self.mj_data.qpos[3] = self.low_state.quaternion[0]
+                    self.mj_data.qpos[4] = self.low_state.quaternion[1]
+                    self.mj_data.qpos[5] = self.low_state.quaternion[2]
+                    self.mj_data.qpos[6] = self.low_state.quaternion[3]
             else:
                 if self.kf_mode == "vicon_with_kf":
                     if self.in_replay_mode:
@@ -175,14 +176,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 self.low_state.velocity[:] = self.KF.x[3:6]
                 self.low_state.quaternion[:] = self.vicon_tron1_quat
 
-                # display in mujoco viewer
-                self.mj_data.qpos[0] = self.low_state.position[0]
-                self.mj_data.qpos[1] = self.low_state.position[1]
-                self.mj_data.qpos[2] = self.low_state.position[2]
-                self.mj_data.qpos[3] = self.low_state.quaternion[0]
-                self.mj_data.qpos[4] = self.low_state.quaternion[1]
-                self.mj_data.qpos[5] = self.low_state.quaternion[2]
-                self.mj_data.qpos[6] = self.low_state.quaternion[3]
+                if self.in_replay_mode:
+                    # display in mujoco viewer
+                    self.mj_data.qpos[0] = self.low_state.position[0]
+                    self.mj_data.qpos[1] = self.low_state.position[1]
+                    self.mj_data.qpos[2] = self.low_state.position[2]
+                    self.mj_data.qpos[3] = self.low_state.quaternion[0]
+                    self.mj_data.qpos[4] = self.low_state.quaternion[1]
+                    self.mj_data.qpos[5] = self.low_state.quaternion[2]
+                    self.mj_data.qpos[6] = self.low_state.quaternion[3]
 
                 # visualization of the state estimation (red box and blue arrow)
                 self.vis_pos_est = self.KF.x[:3]
