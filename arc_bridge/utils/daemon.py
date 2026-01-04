@@ -228,7 +228,10 @@ class DaemonSpy:
         self.window_size = int(window_size)
         if self.window_size <= 0:
             raise ValueError("window_size must be > 0")
-        self._delta_samples: deque[int] = deque(maxlen=self.window_size)
+        self._delta_samples: deque[int] = deque()
+        self._delta_sum = 0  # sum of deltas in the current window
+        self._min_queue: deque[int] = deque()
+        self._max_queue: deque[int] = deque()
         self.delta_ms = 0
         self.min_delta_ms = 0
         self.max_delta_ms = 0
@@ -237,6 +240,9 @@ class DaemonSpy:
     def reset(self) -> None:
         """Reset the rolling window statistics."""
         self._delta_samples.clear()
+        self._delta_sum = 0
+        self._min_queue.clear()
+        self._max_queue.clear()
         self.delta_ms = 0
         self.min_delta_ms = 0
         self.max_delta_ms = 0
@@ -251,13 +257,30 @@ class DaemonSpy:
         if delta_ms <= 0:
             return
         self.delta_ms = delta_ms
+        if len(self._delta_samples) == self.window_size:
+            old = self._delta_samples.popleft()
+            self._delta_sum -= old
+            if self._min_queue and self._min_queue[0] == old:
+                self._min_queue.popleft()  # pop from left (front) if the oldest sample is the current smallest min
+            if self._max_queue and self._max_queue[0] == old:
+                self._max_queue.popleft()
+
         self._delta_samples.append(delta_ms)
-        self.min_delta_ms = min(self._delta_samples) if self._delta_samples else 0
-        self.max_delta_ms = max(self._delta_samples) if self._delta_samples else 0
-        total_ms = sum(self._delta_samples)
-        if total_ms <= 0:
+        self._delta_sum += delta_ms
+
+        # if new delta is smaller than right [-1] current largest mins, pop from right (back) until not; since those popped cannot be mins anymore
+        while self._min_queue and self._min_queue[-1] > delta_ms:
+            self._min_queue.pop()
+        self._min_queue.append(delta_ms)  # [0] is samllest; [-1] is largest
+
+        while self._max_queue and self._max_queue[-1] < delta_ms:
+            self._max_queue.pop()
+        self._max_queue.append(delta_ms)  # [0] is largest; [-1] is smallest
+
+        self.min_delta_ms = self._min_queue[0] if self._delta_samples else 0
+        self.max_delta_ms = self._max_queue[0] if self._delta_samples else 0
+        if self._delta_sum <= 0:
             self.frequency_hz = 0.0
         else:
             count = len(self._delta_samples)
-            self.frequency_hz = (self.TIME_RESOLUTION_HZ * count) / float(total_ms)
-
+            self.frequency_hz = (self.TIME_RESOLUTION_HZ * count) / float(self._delta_sum)
