@@ -61,16 +61,18 @@ class Lcm2MujocoBridge:
         self.low_cmd = self.low_cmd_type()
         self.control_delay = max(config.control_delay, 0.0)
         self.sensor_delay = max(config.sensor_delay, 0.0)
-        self.control_delay_steps = int(round(self.control_delay / self.dt)) if self.dt > 0 else 0
-        self.sensor_delay_steps = int(round(self.sensor_delay / self.dt)) if self.dt > 0 else 0
-        self._control_buffer = self._init_delay_buffer(self.low_cmd, self.control_delay_steps)
-        self._sensor_buffer = self._init_delay_buffer(self.low_state, self.sensor_delay_steps)
+        control_delay_s = self.control_delay / 1000.0
+        sensor_delay_s = self.sensor_delay / 1000.0
+        self.control_delay_steps = int(round(control_delay_s / self.dt)) if self.dt > 0 and control_delay_s > 0 else 0
+        self.sensor_delay_steps = int(round(sensor_delay_s / self.dt)) if self.dt > 0 and sensor_delay_s > 0 else 0
+        self._control_buffer = self._init_delay_buffer(self.low_cmd, self.control_delay_steps) if self.control_delay_steps > 0 else None
+        self._sensor_buffer = self._init_delay_buffer(self.low_state, self.sensor_delay_steps) if self.sensor_delay_steps > 0 else None
         self._most_recent_low_cmd = self.low_cmd
         self._most_recent_low_state = self.low_state
         if self.control_delay_steps:
-            print(f"=> control delay: {self.control_delay_steps} steps ({self.control_delay:.6f}s)")
+            print(f"=> control delay: {self.control_delay_steps} steps ({self.control_delay:.3f}ms)")
         if self.sensor_delay_steps:
-            print(f"=> sensor delay: {self.sensor_delay_steps} steps ({self.sensor_delay:.6f}s)")
+            print(f"=> sensor delay: {self.sensor_delay_steps} steps ({self.sensor_delay:.3f}ms)")
         self.lcm_handle_thread = None
 
         self.low_cmd_received = False

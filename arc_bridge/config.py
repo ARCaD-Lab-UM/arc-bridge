@@ -38,5 +38,5 @@ class Config:
 
         if control_delay < 0 or sensor_delay < 0:
             raise ValueError("control_delay and sensor_delay must be non-negative")
-        self.control_delay = float(control_delay) # default 0.0
-        self.sensor_delay = float(sensor_delay)
+        self.control_delay = float(control_delay)  # milliseconds default 0.0
+        self.sensor_delay = float(sensor_delay)  # milliseconds
