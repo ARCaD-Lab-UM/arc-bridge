@@ -1,6 +1,7 @@
-import mujoco
-import numpy as np
 import pdb
+import mujoco
+import warnings
+import numpy as np
 # import pinocchio as pin
 from threading import Lock
 from nav_msgs.msg import Odometry # ROS2 Vicon
@@ -439,6 +440,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         clock_now = self.vicon_ros2_client.node.get_clock().now()
         now_sec = clock_now.nanoseconds * 1e-9
         dt = 0.0 if stamp <= 0 else max(0.0, now_sec - stamp)
+        if dt > 0.02:
+            warnings.warn("Vicon large delay detected", UserWarning)
 
         pos_msg = msg.pose.pose.position
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
