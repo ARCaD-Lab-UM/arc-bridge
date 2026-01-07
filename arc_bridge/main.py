@@ -62,6 +62,8 @@ def main():
     parser.add_argument("--use_gamepad", action="store_true", help="use gamepad to control the robot")
     parser.add_argument("--control_delay", type=float, default=0.0, help="control delay in milliseconds before commands are applied")
     parser.add_argument("--sensor_delay", type=float, default=0.0, help="sensor delay in milliseconds before states are published")
+    parser.add_argument("--lcm_cmd_online_jitter_time_ms", type=float, default=10.0, help="LCM command watchdog; just online wait time (unstable time); wait time after offline to consider online (ms)")
+    parser.add_argument("--lcm_cmd_offline_time_ms", type=float, default=200.0, help="LCM command watchdog; offline timeout; time to consider offline if no update received (ms)")
     args = parser.parse_args()
 
     # Select robot type
@@ -75,6 +77,8 @@ def main():
         robot_type,
         control_delay=args.control_delay,
         sensor_delay=args.sensor_delay,
+        lcm_cmd_online_jitter_time_ms=args.lcm_cmd_online_jitter_time_ms,
+        lcm_cmd_offline_time_ms=args.lcm_cmd_offline_time_ms,
         launch_args=args,
     )
 

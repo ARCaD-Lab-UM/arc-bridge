@@ -11,17 +11,17 @@ DataErrorCheck = Callable[[], bool]
 DataErrorSolver = Callable[[], None]
 
 
-def _default_time_ms() -> int:
-    return time.monotonic_ns() // 1_000_000  # convert to milliseconds
+def _default_time_ms() -> float:
+    return time.monotonic_ns() / 1_000_000.0  # convert to milliseconds with sub-ms resolution
 
 
 @dataclass(slots=True)
 class DaemonConfig:
     # just online wait time (unstable time); wait time after offline to consider online (ms)
-    set_online_jitter_time_ms: int
+    set_online_jitter_time_ms: float
 
     # time to consider offline if no update received (ms)
-    set_offline_time_ms: int
+    set_offline_time_ms: float
 
     # optional callback on offline event; called when offline is detected to handle it. None if not needed.
     offline_callback: Optional[OfflineCallback] = None
@@ -43,8 +43,8 @@ class Daemon:
 
     Example:
         config = DaemonConfig(
-            set_online_jitter_time_ms=200,
-            set_offline_time_ms=1000,
+            set_online_jitter_time_ms=200.0,
+            set_offline_time_ms=1000.0,
             owner_id="motor-1",
         )  # optional callback etc. can be provided in config
         daemon = Daemon(config)
@@ -52,38 +52,38 @@ class Daemon:
         daemon.update()  # call periodically (e.g., in a loop)
     """
     # static class variable
-    TIME_RESOLUTION_HZ: ClassVar[int] = 1000
+    TIME_RESOLUTION_HZ: ClassVar[float] = 1000.0
 
     def __init__(
         self,
         config: DaemonConfig,
         *,
-        time_provider: Optional[Callable[[], int]] = None,  # function that provides current time in milliseconds. None to use default.
+        time_provider: Optional[Callable[[], float]] = None,  # function that provides current time in milliseconds. None to use default.
         spy: Optional[DaemonSpy] = None,  # rolling window stats helper; None to disable.
     ) -> None:
         if config.set_online_jitter_time_ms < 0 or config.set_offline_time_ms < 0:
             raise ValueError("offline/jitter times must be non-negative")
 
-        self.set_online_jitter_time_ms = int(config.set_online_jitter_time_ms)
-        self.set_offline_time_ms = int(config.set_offline_time_ms)
+        self.set_online_jitter_time_ms = float(config.set_online_jitter_time_ms)
+        self.set_offline_time_ms = float(config.set_offline_time_ms)
         self.offline_callback = config.offline_callback
         self.data_is_error_fun = config.data_is_error_fun
         self.solve_data_error_fun = config.solve_data_error_fun
         self.owner_id = config.owner_id
 
-        self.new_time_ms = 0  # timestamp of the latest data received
-        self.last_time_ms = 0  # timestamp of the previous data received
-        self.lost_time_ms = 0  # timestamp when the instance was marked offline
-        self.work_time_ms = 0  # timestamp when the instance was last marked online
+        self.new_time_ms = 0.0  # timestamp of the latest data received
+        self.last_time_ms = 0.0  # timestamp of the previous data received
+        self.lost_time_ms = 0.0  # timestamp when the instance was marked offline
+        self.work_time_ms = 0.0  # timestamp when the instance was last marked online
 
         self.error_exist = False  # True if any error exists. Equivalent: (is_lost or data_is_error)
         self.is_lost = False  # True if the instance is offline
         self.data_is_error = False  # True if the latest data is erroneous
 
-        self.delta_ms = 0  # time difference between the last two data received in milliseconds
+        self.delta_ms = 0.0  # time difference between the last two data received in milliseconds
         self.frequency_hz = 0.0  # calculated est. data update frequency in Hz
-        self.min_delta_ms = 0  # rolling window min delta; 0 when spy disabled
-        self.max_delta_ms = 0  # rolling window max delta; 0 when spy disabled
+        self.min_delta_ms = 0.0  # rolling window min delta; 0 when spy disabled
+        self.max_delta_ms = 0.0  # rolling window max delta; 0 when spy disabled
 
         # set up time provider
         self._time_provider = time_provider or _default_time_ms
@@ -105,28 +105,28 @@ class Daemon:
     def detach_spy(self) -> None:
         """Detach the rolling window spy."""
         self._spy = None
-        self.min_delta_ms = 0
-        self.max_delta_ms = 0
+        self.min_delta_ms = 0.0
+        self.max_delta_ms = 0.0
 
-    def _now_ms(self, now_ms: Optional[int] = None) -> int:
+    def _now_ms(self, now_ms: Optional[float] = None) -> float:
         """Get the current time in milliseconds.
 
         Args:
-            now_ms (Optional[int], optional): override time in milliseconds. Defaults to None.
+            now_ms (Optional[float], optional): override time in milliseconds. Defaults to None.
 
         Returns:
-            int: current time in milliseconds.
+            float: current time in milliseconds.
         """
-        return self._time_provider() if now_ms is None else int(now_ms)
+        return self._time_provider() if now_ms is None else float(now_ms)
 
-    def _record_delta(self, delta_ms: int) -> None:
+    def _record_delta(self, delta_ms: float) -> None:
         if delta_ms <= 0:
             return
         self.delta_ms = delta_ms
         if self._spy is None:
             self.frequency_hz = self.TIME_RESOLUTION_HZ / float(self.delta_ms)
-            self.min_delta_ms = 0
-            self.max_delta_ms = 0
+            self.min_delta_ms = 0.0
+            self.max_delta_ms = 0.0
             return
 
         self._spy.record(self.delta_ms)
@@ -134,11 +134,11 @@ class Daemon:
         self.min_delta_ms = self._spy.min_delta_ms
         self.max_delta_ms = self._spy.max_delta_ms
 
-    def reload(self, now_ms: Optional[int] = None) -> None:
+    def reload(self, now_ms: Optional[float] = None) -> None:
         """Reload the daemon with current time when new data is received.
 
         Args:
-            now_ms (Optional[int], optional): override time in milliseconds. Defaults to None.
+            now_ms (Optional[float], optional): override time in milliseconds. Defaults to None.
         """
         now = self._now_ms(now_ms)
         self.last_time_ms = self.new_time_ms
@@ -185,11 +185,11 @@ class Daemon:
         """
         return self.error_exist
 
-    def update(self, now_ms: Optional[int] = None) -> None:
+    def update(self, now_ms: Optional[float] = None) -> None:
         """Background task/function to update the daemon status.
 
         Args:
-            now_ms (Optional[int], optional): override time in milliseconds. Defaults to None.
+            now_ms (Optional[float], optional): override time in milliseconds. Defaults to None.
         """
         current_time = self._now_ms(now_ms)
 
@@ -220,39 +220,39 @@ class DaemonSpy:
 
     Example:
         spy = DaemonSpy(window_size=10)
-        daemon = Daemon(DaemonConfig(50, 200), spy=spy)
+        daemon = Daemon(DaemonConfig(50.0, 200.0), spy=spy)
     """
-    TIME_RESOLUTION_HZ: ClassVar[int] = 1000
+    TIME_RESOLUTION_HZ: ClassVar[float] = 1000.0
 
     def __init__(self, window_size: int) -> None:
         self.window_size = int(window_size)
         if self.window_size <= 0:
             raise ValueError("window_size must be > 0")
-        self._delta_samples: deque[int] = deque()
-        self._delta_sum = 0  # sum of deltas in the current window
-        self._min_queue: deque[int] = deque()
-        self._max_queue: deque[int] = deque()
-        self.delta_ms = 0
-        self.min_delta_ms = 0
-        self.max_delta_ms = 0
-        self.frequency_hz = 0.0
+        self._delta_samples: deque[float] = deque()
+        self._delta_sum = 0.0  # sum of deltas in the current window
+        self._min_queue: deque[float] = deque()
+        self._max_queue: deque[float] = deque()
+        self.delta_ms = 0.0  # latest delta sample
+        self.min_delta_ms = 0.0  # rolling window min delta
+        self.max_delta_ms = 0.0  # rolling window max delta
+        self.frequency_hz = 0.0  # rolling window calculated frequency in Hz
 
     def reset(self) -> None:
         """Reset the rolling window statistics."""
         self._delta_samples.clear()
-        self._delta_sum = 0
+        self._delta_sum = 0.0
         self._min_queue.clear()
         self._max_queue.clear()
-        self.delta_ms = 0
-        self.min_delta_ms = 0
-        self.max_delta_ms = 0
+        self.delta_ms = 0.0
+        self.min_delta_ms = 0.0
+        self.max_delta_ms = 0.0
         self.frequency_hz = 0.0
 
-    def record(self, delta_ms: int) -> None:
+    def record(self, delta_ms: float) -> None:
         """Record a new sample.
 
         Args:
-            delta_ms (int): time difference in milliseconds.
+            delta_ms (float): time difference in milliseconds.
         """
         if delta_ms <= 0:
             return
@@ -277,8 +277,8 @@ class DaemonSpy:
             self._max_queue.pop()
         self._max_queue.append(delta_ms)  # [0] is largest; [-1] is smallest
 
-        self.min_delta_ms = self._min_queue[0] if self._delta_samples else 0
-        self.max_delta_ms = self._max_queue[0] if self._delta_samples else 0
+        self.min_delta_ms = self._min_queue[0] if self._delta_samples else 0.0
+        self.max_delta_ms = self._max_queue[0] if self._delta_samples else 0.0
         if self._delta_sum <= 0:
             self.frequency_hz = 0.0
         else:

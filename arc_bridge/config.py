@@ -25,7 +25,7 @@ class Config:
     }
     valid_robot_types = list(robot_path_dict.keys())
 
-    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0, launch_args=None):
+    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0, lcm_cmd_online_jitter_time_ms: float = 10.0, lcm_cmd_offline_time_ms: float = 200.0, launch_args=None):
         self.launch_args = launch_args
         self.robot_type = robot_type
         if self.robot_type not in self.valid_robot_types:
@@ -38,5 +38,9 @@ class Config:
 
         if control_delay < 0 or sensor_delay < 0:
             raise ValueError("control_delay and sensor_delay must be non-negative")
-        self.control_delay = float(control_delay)  # milliseconds default 0.0
+        if lcm_cmd_online_jitter_time_ms < 0 or lcm_cmd_offline_time_ms < 0:
+            raise ValueError("lcm_cmd daemon times must be non-negative")
+        self.control_delay = float(control_delay)  # milliseconds
         self.sensor_delay = float(sensor_delay)  # milliseconds
+        self.lcm_cmd_online_jitter_time_ms = float(lcm_cmd_online_jitter_time_ms)
+        self.lcm_cmd_offline_time_ms = float(lcm_cmd_offline_time_ms)

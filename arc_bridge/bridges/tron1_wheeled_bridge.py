@@ -1,6 +1,7 @@
 import pdb
 import mujoco
 import warnings
+import time
 import numpy as np
 # import pinocchio as pin
 from threading import Lock
@@ -13,6 +14,20 @@ from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t, 
 from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 from arc_bridge.utils import *
 from .vicon_ros2_client import ViconRos2Client
+
+
+# Configure warnings
+class ViconDelayWarning(UserWarning):
+    pass
+
+
+warnings.simplefilter("always", ViconDelayWarning)  # print every time
+# warnings.simplefilter("once", ViconDelayWarning)    # default: once per location
+# warnings.simplefilter("ignore", ViconDelayWarning)  # suppress
+# Color codes for terminal output
+RED = "\033[31m"
+YELLOW = "\033[33m"
+RESET = "\033[0m"
 
 
 class Tron1WheeledBridge(Lcm2MujocoBridge):
@@ -36,6 +51,21 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.vicon_ros2_client = ViconRos2Client(node_name="arc_bridge_vicon_listener")
             self.vicon_ros2_client.start()
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
+
+        # Vicon Daemon
+        self._vicon_last_print_t = 0.0
+        self._vicon_print_interval_s = 1.0
+        self._vicon_spy = None
+        # self._vicon_spy = DaemonSpy(window_size=100)
+        self._vicon_daemon = Daemon(
+            DaemonConfig(
+                set_online_jitter_time_ms=10.0,
+                set_offline_time_ms=100.0,
+                owner_id="vicon",
+            ),
+            spy=self._vicon_spy,
+        )
+        self._vicon_seen = False
 
         # Override motor offsets (rad)
         self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
@@ -108,7 +138,34 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.calibrated = True
         self.gravity_add_bias = np.array([0, 0, 9.81])
 
+    def _print_vicon_daemon(self) -> None:
+        if self._vicon_spy is None:
+            return
+        if self._vicon_print_interval_s <= 0.0:
+            return
+        now = time.monotonic()
+        if now - self._vicon_last_print_t < self._vicon_print_interval_s:
+            return
+        self._vicon_last_print_t = now
+        freq_hz = float(self._vicon_spy.frequency_hz)
+        min_delta_ms = float(self._vicon_spy.min_delta_ms)
+        max_delta_ms = float(self._vicon_spy.max_delta_ms)
+        status = "ERROR" if self._vicon_daemon.is_error() else "OK"
+        prefix = "WARNING" if self._vicon_daemon.is_error() else "INFO"
+        print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.6f} ms, max_dt={max_delta_ms:.6f} ms")
+
+    def vicon_daemon_update(self) -> None:
+        self._vicon_daemon.update()
+        self._print_vicon_daemon()
+
+    def vicon_daemon_is_error(self) -> bool:
+        return self._vicon_daemon.is_error()  # and self._vicon_seen
+
     def update_state_estimation(self):
+        self.vicon_daemon_update()
+        if self.in_replay_mode and self.vicon_daemon_is_error():
+            warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", ViconDelayWarning)
+
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
         acc_body = np.array(self.low_state.acceleration, dtype=float)
@@ -441,7 +498,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         now_sec = clock_now.nanoseconds * 1e-9
         dt = 0.0 if stamp <= 0 else max(0.0, now_sec - stamp)
         if dt > 0.02:
-            warnings.warn("Vicon large delay detected", UserWarning)
+            warnings.warn(f"{YELLOW}Vicon large delay detected{RESET}", ViconDelayWarning)
 
         pos_msg = msg.pose.pose.position
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
@@ -466,6 +523,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
             self.vicon_tron1_lin_vel_world[:] = vel_world
             self.vicon_tron1_ang_omega_world[:] = omega_world
+            self._vicon_seen = True
+            self._vicon_daemon.reload()
             return
 
         if self.calibrated and self._rx_state_available:
@@ -492,6 +551,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.KF.R[0:6, 0:6] *= scale  # only scale pos and vel
 
             self.KF.correct(meas_full_state)
+        self._vicon_seen = True
+        self._vicon_daemon.reload()
 
     def _test_vicon_correction_in_simulation(self, meas: np.ndarray):
         dt = 0.0 # change manually if needed
