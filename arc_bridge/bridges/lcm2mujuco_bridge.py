@@ -81,8 +81,8 @@ class Lcm2MujocoBridge:
         # LCM command daemon
         self._lcm_cmd_last_print_t = 0.0
         self._lcm_cmd_print_interval_s = 1.0
-        # self._lcm_cmd_spy = None
-        self._lcm_cmd_spy = DaemonSpy(window_size=200)
+        self._lcm_cmd_spy = None
+        # self._lcm_cmd_spy = DaemonSpy(window_size=200)
         self._lcm_cmd_daemon = Daemon(
             DaemonConfig(
                 set_online_jitter_time_ms=self.config.lcm_cmd_online_jitter_time_ms,
