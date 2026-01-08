@@ -55,11 +55,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Vicon Daemon
         self._vicon_last_print_t = 0.0
         self._vicon_print_interval_s = 1.0
-        self._vicon_spy = None
-        # self._vicon_spy = DaemonSpy(window_size=100)
+        # self._vicon_spy = None
+        self._vicon_spy = DaemonSpy(window_size=100)
         self._vicon_daemon = Daemon(
             DaemonConfig(
-                set_online_jitter_time_ms=10.0,
+                set_online_jitter_time_ms=0.0,
                 set_offline_time_ms=100.0,
                 owner_id="vicon",
             ),
