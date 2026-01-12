@@ -657,5 +657,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Run superclass method
         super().register_low_cmd_subscriber(topic)
         # Register additional MPC command subscriber
-        temp = self.lc.subscribe("tron1_wheeled_plan", self.mpc_command_handler)
+        if self.in_replay_mode:
+            temp = self.lc.subscribe("TRON1_WHEELED_PLAN", self.mpc_command_handler)
+        else:
+            temp = self.lc.subscribe("tron1_wheeled_plan", self.mpc_command_handler)
         temp.set_queue_capacity(1)
