@@ -162,9 +162,10 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         return self._vicon_daemon.is_error()  # and self._vicon_seen
 
     def update_state_estimation(self):
-        self.vicon_daemon_update()
-        if self.in_replay_mode and self.vicon_daemon_is_error():
-            warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", ViconDelayWarning)
+        if self.in_replay_mode: 
+            self.vicon_daemon_update()
+            if self.vicon_daemon_is_error():
+                warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", ViconDelayWarning)
 
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
