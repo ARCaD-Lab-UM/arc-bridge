@@ -7,8 +7,8 @@ from typing import Any, Callable, ClassVar, Optional
 
 # Type aliases for callback functions
 OfflineCallback = Callable[[Any], None]
-DataErrorCheck = Callable[[], bool]
-DataErrorSolver = Callable[[], None]
+CheckDataErrorCallback = Callable[[], bool]
+SolveDataErrorCallback = Callable[[], None]
 
 
 def _default_time_ms() -> float:
@@ -27,12 +27,12 @@ class DaemonConfig:
     offline_callback: Optional[OfflineCallback] = None
 
     # optional callback to check if data is erroneous; None if not needed.
-    data_is_error_fun: Optional[DataErrorCheck] = None
+    check_data_error_callback: Optional[CheckDataErrorCallback] = None
 
     # optional callback to solve data error; None if not needed.
-    solve_data_error_fun: Optional[DataErrorSolver] = None
+    solve_data_error_callback: Optional[SolveDataErrorCallback] = None
 
-    # optional owner identifier for the daemon instance
+    # optional owner identifier for the daemon instance; can be any type (str, int, object, etc.); used in offline_callback to identify the owner.
     owner_id: Any = None
 
 
@@ -67,8 +67,8 @@ class Daemon:
         self.set_online_jitter_time_ms = float(config.set_online_jitter_time_ms)
         self.set_offline_time_ms = float(config.set_offline_time_ms)
         self.offline_callback = config.offline_callback
-        self.data_is_error_fun = config.data_is_error_fun
-        self.solve_data_error_fun = config.solve_data_error_fun
+        self.check_data_error_callback = config.check_data_error_callback
+        self.solve_data_error_callback = config.solve_data_error_callback
         self.owner_id = config.owner_id
 
         self.new_time_ms = 0.0  # timestamp of the latest data received
@@ -76,9 +76,9 @@ class Daemon:
         self.lost_time_ms = 0.0  # timestamp when the instance was marked offline
         self.work_time_ms = 0.0  # timestamp when the instance was last marked online
 
-        self.error_exist = False  # True if any error exists. Equivalent: (is_lost or data_is_error)
-        self.is_lost = False  # True if the instance is offline
-        self.data_is_error = False  # True if the latest data is erroneous
+        self._is_error = False  # True if any error exists. Equivalent: (_is_offline or _data_error)
+        self._is_offline = False  # True if the instance is offline
+        self._data_error = False  # True if the latest data is erroneous
 
         self.delta_ms = 0.0  # time difference between the last two data received in milliseconds
         self.frequency_hz = 0.0  # calculated est. data update frequency in Hz
@@ -146,20 +146,20 @@ class Daemon:
         if self.new_time_ms > self.last_time_ms:
             self._record_delta(self.new_time_ms - self.last_time_ms)
 
-        if self.is_lost:
-            self.is_lost = False
+        if self._is_offline:
+            self._is_offline = False
             self.work_time_ms = now
 
-        if self.data_is_error_fun is not None:
-            if self.data_is_error_fun():
-                self.error_exist = True
-                self.data_is_error = True
-                if self.solve_data_error_fun is not None:
-                    self.solve_data_error_fun()
+        if self.check_data_error_callback is not None:
+            if self.check_data_error_callback():
+                self._is_error = True
+                self._data_error = True
+                if self.solve_data_error_callback is not None:
+                    self.solve_data_error_callback()
             else:
-                self.data_is_error = False
+                self._data_error = False
         else:
-            self.data_is_error = False
+            self._data_error = False
 
     def is_online(self) -> bool:
         """Whether the daemon is online.
@@ -167,7 +167,7 @@ class Daemon:
         Returns:
             bool: True if online.
         """
-        return not self.is_lost
+        return not self._is_offline
 
     def is_offline(self) -> bool:
         """Whether the daemon is offline.
@@ -175,7 +175,7 @@ class Daemon:
         Returns:
             bool: True if offline.
         """
-        return self.is_lost
+        return self._is_offline
 
     def is_error(self) -> bool:
         """Whether any error exists (offline or data error).
@@ -183,7 +183,7 @@ class Daemon:
         Returns:
             bool: True if any error exists.
         """
-        return self.error_exist
+        return self._is_error
 
     def update(self, now_ms: Optional[float] = None) -> None:
         """Background task/function to update the daemon status.
@@ -196,22 +196,22 @@ class Daemon:
         # to jusge offline/online status; one of the following scenarios:
         if (current_time > self.new_time_ms and current_time - self.new_time_ms > self.set_offline_time_ms):
             # offline
-            if not self.is_lost:
+            if not self._is_offline:
                 # mark offline/error and timestamp
-                self.is_lost = True
-                self.error_exist = True
+                self._is_offline = True
+                self._is_error = True
                 self.lost_time_ms = current_time
             # call offline callback if exists
             if self.offline_callback is not None:
                 self.offline_callback(self.owner_id)  # owner_id is passed so that the callback can identify the specific owner
         elif (current_time > self.new_time_ms and current_time - self.work_time_ms < self.set_online_jitter_time_ms):
             # just online (connected after offline; unstable time), within jitter, still consider error
-            self.is_lost = False
-            self.error_exist = True  # only mark as error
+            self._is_offline = False
+            self._is_error = True  # only mark as error
         else:
             # online normally
-            self.is_lost = False
-            self.error_exist = bool(self.data_is_error)  # mark error only if data error exists
+            self._is_offline = False
+            self._is_error = bool(self._data_error)  # mark error only if data error exists
 
 
 class DaemonSpy:

@@ -1,7 +1,6 @@
 import pdb
 import mujoco
 import warnings
-import time
 import numpy as np
 # import pinocchio as pin
 from threading import Lock
@@ -17,13 +16,13 @@ from .vicon_ros2_client import ViconRos2Client
 
 
 # Configure warnings
-class ViconDelayWarning(UserWarning):
+class Tron1WheeledWarning(UserWarning):
     pass
 
 
-warnings.simplefilter("always", ViconDelayWarning)  # print every time
-# warnings.simplefilter("once", ViconDelayWarning)    # default: once per location
-# warnings.simplefilter("ignore", ViconDelayWarning)  # suppress
+# warnings.simplefilter("always", Tron1WheeledWarning)  # print every time
+warnings.simplefilter("once", Tron1WheeledWarning)    # default: once per location
+# warnings.simplefilter("ignore", Tron1WheeledWarning)  # suppress
 # Color codes for terminal output
 RED = "\033[31m"
 YELLOW = "\033[33m"
@@ -53,8 +52,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
 
         # Vicon Daemon
-        self._vicon_last_print_t = 0.0
         self._vicon_print_interval_s = 1.0
+        self._vicon_print_throttle = PrintThrottle(self._vicon_print_interval_s)
         # self._vicon_spy = None
         self._vicon_spy = DaemonSpy(window_size=100)
         self._vicon_daemon = Daemon(
@@ -66,6 +65,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             spy=self._vicon_spy,
         )
         self._vicon_seen = False
+
+        # Robot throttle print msg
+        self._tron1_print_throttle = PrintThrottle(1.0)
 
         # Override motor offsets (rad)
         self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
@@ -143,29 +145,23 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             return
         if self._vicon_print_interval_s <= 0.0:
             return
-        now = time.monotonic()
-        if now - self._vicon_last_print_t < self._vicon_print_interval_s:
-            return
-        self._vicon_last_print_t = now
+        self._vicon_print_throttle.interval_s = self._vicon_print_interval_s
         freq_hz = float(self._vicon_spy.frequency_hz)
         min_delta_ms = float(self._vicon_spy.min_delta_ms)
         max_delta_ms = float(self._vicon_spy.max_delta_ms)
         status = "ERROR" if self._vicon_daemon.is_error() else "OK"
         prefix = "WARNING" if self._vicon_daemon.is_error() else "INFO"
-        print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.6f} ms, max_dt={max_delta_ms:.6f} ms")
-
-    def vicon_daemon_update(self) -> None:
-        self._vicon_daemon.update()
-        self._print_vicon_daemon()
-
-    def vicon_daemon_is_error(self) -> bool:
-        return self._vicon_daemon.is_error()  # and self._vicon_seen
+        self._vicon_print_throttle.print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.3f} ms, max_dt={max_delta_ms:.3f} ms")
 
     def update_state_estimation(self):
-        if self.in_replay_mode: 
-            self.vicon_daemon_update()
-            if self.vicon_daemon_is_error():
-                warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", ViconDelayWarning)
+        self._vicon_daemon.update()
+        self._print_vicon_daemon()
+        if self.in_replay_mode and self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf":
+            if not self._vicon_seen:
+                self._tron1_print_throttle.print("Waiting for Vicon data")
+            elif self._vicon_daemon.is_error():
+                # warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", Tron1WheeledWarning)
+                self._tron1_print_throttle.print(f"{RED}Vicon Daemon is in ERROR!{RESET}")
 
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
@@ -499,7 +495,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         now_sec = clock_now.nanoseconds * 1e-9
         dt = 0.0 if stamp <= 0 else max(0.0, now_sec - stamp)
         if dt > 0.02:
-            warnings.warn(f"{YELLOW}Vicon large delay detected{RESET}", ViconDelayWarning)
+            # warnings.warn(f"{YELLOW}Vicon large delay detected{RESET}", Tron1WheeledWarning)
+            self._tron1_print_throttle.print(f"{YELLOW}Vicon large delay detected{RESET}")
 
         pos_msg = msg.pose.pose.position
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)

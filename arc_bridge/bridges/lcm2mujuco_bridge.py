@@ -79,8 +79,8 @@ class Lcm2MujocoBridge:
         self.is_running = None
 
         # LCM command daemon
-        self._lcm_cmd_last_print_t = 0.0
         self._lcm_cmd_print_interval_s = 1.0
+        self._lcm_cmd_print_throttle = PrintThrottle(self._lcm_cmd_print_interval_s)
         self._lcm_cmd_spy = None
         # self._lcm_cmd_spy = DaemonSpy(window_size=200)
         self._lcm_cmd_daemon = Daemon(
@@ -128,23 +128,13 @@ class Lcm2MujocoBridge:
             return
         if self._lcm_cmd_print_interval_s <= 0.0:
             return
-        now = time.monotonic()
-        if now - self._lcm_cmd_last_print_t < self._lcm_cmd_print_interval_s:
-            return
-        self._lcm_cmd_last_print_t = now
+        self._lcm_cmd_print_throttle.interval_s = self._lcm_cmd_print_interval_s
         freq_hz = float(self._lcm_cmd_spy.frequency_hz)
         min_delta_ms = float(self._lcm_cmd_spy.min_delta_ms)
         max_delta_ms = float(self._lcm_cmd_spy.max_delta_ms)
         status = "ERROR" if self._lcm_cmd_daemon.is_error() else "OK"
         prefix = "WARNING" if self._lcm_cmd_daemon.is_error() else "INFO"
-        print(f"[{prefix}] LCM cmd daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.6f} ms, max_dt={max_delta_ms:.6f} ms")
-
-    def lcm_cmd_daemon_update(self) -> None:
-        self._lcm_cmd_daemon.update()
-        self._print_lcm_cmd_daemon()
-
-    def lcm_cmd_daemon_is_error(self) -> bool:
-        return self._lcm_cmd_daemon.is_error()  # and self._lcm_cmd_seen
+        self._lcm_cmd_print_throttle.print(f"[{prefix}] LCM cmd daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.6f} ms, max_dt={max_delta_ms:.6f} ms")
 
     def lcm_cmd_handler(self, channel, data):
         if self.mj_data is None:
@@ -304,8 +294,9 @@ class Lcm2MujocoBridge:
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
 
     def update_motor_cmd(self):
-        self.lcm_cmd_daemon_update()
-        if self.lcm_cmd_daemon_is_error():
+        self._lcm_cmd_daemon.update()
+        self._print_lcm_cmd_daemon()
+        if self._lcm_cmd_daemon.is_error():
             self.mj_data.ctrl[:] = 0.0
             return
         cmd = self._compute_delayed_low_cmd()
