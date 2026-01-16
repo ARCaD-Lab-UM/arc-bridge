@@ -43,10 +43,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.T_vicon_tron1_meas_to_base_link = np.eye(4, dtype=float)
         self.T_vicon_tron1_meas_to_base_link[:3, 3] = np.array([0.0, 0.0, 0.020])
 
+        # State Estimation mode
+        self.kf_mode = "vicon_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf"
+
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
         self.vicon_ros2_client = None
-        if self.in_replay_mode:
+        if self.in_replay_mode and (self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf"):
             self.vicon_ros2_client = ViconRos2Client(node_name="arc_bridge_vicon_listener")
             self.vicon_ros2_client.start()
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
@@ -58,8 +61,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._vicon_spy = DaemonSpy(window_size=100)
         self._vicon_daemon = Daemon(
             DaemonConfig(
-                set_online_jitter_time_ms=0.0,
-                set_offline_time_ms=100.0,
+                set_online_jitter_time_ms=0,
+                set_offline_time_ms=100,
                 owner_id="vicon",
             ),
             spy=self._vicon_spy,
@@ -127,7 +130,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.R_torso_global_rpy = np.eye(3) # to store the torso to global rotation using rpy(imu) orientation
         self.R_torso_global_quat = np.eye(3) # to store the torso to global rotation using quat(vicon) orientation
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
-        self.kf_mode = "vicon_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf"
 
         # Replay buffers to avoid races between LCM and simulation threads
         self._rx_state_quaternion = np.array([1.0, 0.0, 0.0, 0.0])
@@ -154,9 +156,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._vicon_print_throttle.print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.3f} ms, max_dt={max_delta_ms:.3f} ms")
 
     def update_state_estimation(self):
-        self._vicon_daemon.update()
-        self._print_vicon_daemon()
-        if self.in_replay_mode and self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf":
+        if self.in_replay_mode and (self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf"):
+            self._vicon_daemon.update()
+            self._print_vicon_daemon()
             if not self._vicon_seen:
                 self._tron1_print_throttle.print("Waiting for Vicon data")
             elif self._vicon_daemon.is_error():
