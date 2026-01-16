@@ -1,6 +1,7 @@
 import pdb
 import mujoco
 import warnings
+import time
 import numpy as np
 # import pinocchio as pin
 from threading import Lock
@@ -27,6 +28,10 @@ warnings.simplefilter("once", Tron1WheeledWarning)    # default: once per locati
 RED = "\033[31m"
 YELLOW = "\033[33m"
 RESET = "\033[0m"
+
+
+def _wall_time_hms() -> str:
+    return time.strftime("%H:%M:%S", time.localtime())
 
 
 class Tron1WheeledBridge(Lcm2MujocoBridge):
@@ -147,13 +152,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             return
         if self._vicon_print_interval_s <= 0.0:
             return
+        if self._vicon_daemon.is_error():
+            return  # currently only print when no error
         self._vicon_print_throttle.interval_s = self._vicon_print_interval_s
         freq_hz = float(self._vicon_spy.frequency_hz)
         min_delta_ms = float(self._vicon_spy.min_delta_ms)
         max_delta_ms = float(self._vicon_spy.max_delta_ms)
         status = "ERROR" if self._vicon_daemon.is_error() else "OK"
         prefix = "WARNING" if self._vicon_daemon.is_error() else "INFO"
-        self._vicon_print_throttle.print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.3f} ms, max_dt={max_delta_ms:.3f} ms")
+        self._vicon_print_throttle.print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.3f} ms, max_dt={max_delta_ms:.3f} ms @ {_wall_time_hms()}")
 
     def update_state_estimation(self):
         if self.in_replay_mode and (self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf"):
@@ -163,7 +170,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 self._tron1_print_throttle.print("Waiting for Vicon data")
             elif self._vicon_daemon.is_error():
                 # warnings.warn(f"{RED}Vicon Daemon is in ERROR!{RESET}", Tron1WheeledWarning)
-                self._tron1_print_throttle.print(f"{RED}Vicon Daemon is in ERROR!{RESET}")
+                self._tron1_print_throttle.print(f"{RED}Vicon Daemon is in ERROR!{RESET} @ {_wall_time_hms()}")
 
         # use KF to estimate position and velocity
         # input acceleration in body frame from IMU
@@ -498,7 +505,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         dt = 0.0 if stamp <= 0 else max(0.0, now_sec - stamp)
         if dt > 0.02:
             # warnings.warn(f"{YELLOW}Vicon large delay detected{RESET}", Tron1WheeledWarning)
-            self._tron1_print_throttle.print(f"{YELLOW}Vicon large delay detected{RESET}")
+            self._tron1_print_throttle.print(f"{YELLOW}Vicon large delay detected{RESET} @ {_wall_time_hms()}")
 
         pos_msg = msg.pose.pose.position
         pos = np.array([pos_msg.x, pos_msg.y, pos_msg.z], dtype=float)
