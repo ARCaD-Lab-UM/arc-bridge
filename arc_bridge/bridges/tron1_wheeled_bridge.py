@@ -124,16 +124,12 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.pw_body_frame = np.zeros((3,2)) # 2 feet, each has (x, y, z)
         self.vw_body_frame = np.zeros((3,2))
 
-        # IMU bias online average estimator: acc_body(3),  omega_body(3)
-        self.calibrated = False
-        self.imu_bias_average = OnlineAverage(dim=6) 
-        # hardcode gravity bias for the imu
-        self.gravity_add_bias = np.array([0, 0, 9.9945]) # TODO: ask why this value
-        self.imu_acc_bias_body = np.array([0.0, 0.0, 0.0]) # to be filled after enough data
-        self.omega_bias_body = np.array([0.0, 0.0, 0.0]) # assume zero for gyro bias
+        # gravitational acceleration in world frame
+        self.gravity_add_bias = np.array([0, 0, 9.81]) # this value was hardcode 9.9945 for imu
 
         self.R_torso_global_rpy = np.eye(3) # to store the torso to global rotation using rpy(imu) orientation
         self.R_torso_global_quat = np.eye(3) # to store the torso to global rotation using quat(vicon) orientation
+
         self.Jacobian_foot_global =  np.zeros((3, 4, 2)) # to store the foot jacobian
 
         # Replay buffers to avoid races between LCM and simulation threads
@@ -141,11 +137,6 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._rx_state_position = np.zeros(3)
         self._rx_state_velocity = np.zeros(3)
         self._rx_state_available = False
-
-    def _skip_calibration(self):
-        # skip calibration in simulation
-        self.calibrated = True
-        self.gravity_add_bias = np.array([0, 0, 9.81])
 
     def _print_vicon_daemon(self) -> None:
         if self._vicon_spy is None:
@@ -180,97 +171,79 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         acc_world = R_body_to_world @ acc_body - self.gravity_add_bias # remove gravity
         # print(f"norm of acc_world: {np.linalg.norm(acc_world)}")
 
-        # store the acc_world and acc_body in the buffer for calibration
-        if not self.calibrated:
-            # # print(f"acc_world: {acc_world}")
-            # acc_body_bias = acc_body - R_body_to_world.T @ self.gravity_add_bias
-            # omega_body = np.array(self.low_state.omega, dtype=float)
-            # imu_sample = np.hstack((acc_body_bias, omega_body))
-            # self.imu_bias_average.update(imu_sample)
-            # if self.imu_bias_average._count >= 1e4: # 10k samples for 1kHz ~10s
-            #     self.calibrated = True
-            #     self.imu_acc_bias_body = self.imu_bias_average._mean[0:3]
-            #     self.omega_bias_body = self.imu_bias_average._mean[3:6]
-            #     print(f"IMU calibration done. Acc bias in body frame: {self.imu_acc_bias_body}")
-            #     print(f"Gyro omega bias in body frame: {self.omega_bias_body}")
-            self._skip_calibration()  # IMU calibration bypass.
+        if self.kf_mode == "vicon_no_kf":
+            # visulization when no KF - UNCOMMENT this and COMMENT above to use
+            self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
+            self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
+            self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+
+            # send to controller
+            self.low_state.position[:] = self.vicon_tron1_pos
+            self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
+            self.low_state.quaternion[:] = self.vicon_tron1_quat
+
+            if self.in_replay_mode:
+                # display in mujoco viewer
+                self.mj_data.qpos[0] = self.low_state.position[0]
+                self.mj_data.qpos[1] = self.low_state.position[1]
+                self.mj_data.qpos[2] = self.low_state.position[2]
+                self.mj_data.qpos[3] = self.low_state.quaternion[0]
+                self.mj_data.qpos[4] = self.low_state.quaternion[1]
+                self.mj_data.qpos[5] = self.low_state.quaternion[2]
+                self.mj_data.qpos[6] = self.low_state.quaternion[3]
         else:
-            if self.kf_mode == "vicon_no_kf":
-                # visulization when no KF - UNCOMMENT this and COMMENT above to use
-                self.vis_pos_est = np.array(self.low_state.position[:3], dtype=float)
-                self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
-                self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
-
-                # send to controller
-                self.low_state.position[:] = self.vicon_tron1_pos
-                self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
-                self.low_state.quaternion[:] = self.vicon_tron1_quat
-
+            if self.kf_mode == "vicon_with_kf":
                 if self.in_replay_mode:
-                    # display in mujoco viewer
-                    self.mj_data.qpos[0] = self.low_state.position[0]
-                    self.mj_data.qpos[1] = self.low_state.position[1]
-                    self.mj_data.qpos[2] = self.low_state.position[2]
-                    self.mj_data.qpos[3] = self.low_state.quaternion[0]
-                    self.mj_data.qpos[4] = self.low_state.quaternion[1]
-                    self.mj_data.qpos[5] = self.low_state.quaternion[2]
-                    self.mj_data.qpos[6] = self.low_state.quaternion[3]
-            else:
-                if self.kf_mode == "vicon_with_kf":
-                    if self.in_replay_mode:
-                        # in replay mode, correction happens in vicon callback
-                        with self.vicon_lock:
-                            self.KF.predict(u=np.zeros(1))
-                    else:
+                    # in replay mode, correction happens in vicon callback
+                    with self.vicon_lock:
                         self.KF.predict(u=np.zeros(1))
-                        # use ground truth position/velocity for testing
-                        pos = np.array(self.low_state.position[:3], dtype=float)
-                        vel = np.array(self.low_state.velocity[:3], dtype=float)
-                        meas_full_state = np.hstack((pos, vel, acc_world)) # add acc measurement
-                        self._test_vicon_correction_in_simulation(meas_full_state)
-                elif self.kf_mode == "fk_with_kf":
+                else:
                     self.KF.predict(u=np.zeros(1))
-                    # use the joint encoder and our FK for correction
-                    meas = self.get_torso_height_and_velocity_meas_fk()
-                    meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
-                    self.KF.correct(meas_full_state)
+                    # use ground truth position/velocity for testing
+                    pos = np.array(self.low_state.position[:3], dtype=float)
+                    vel = np.array(self.low_state.velocity[:3], dtype=float)
+                    meas_full_state = np.hstack((pos, vel, acc_world)) # add acc measurement
+                    self._test_vicon_correction_in_simulation(meas_full_state)
+            elif self.kf_mode == "fk_with_kf":
+                self.KF.predict(u=np.zeros(1))
+                # use the joint encoder and our FK for correction
+                meas = self.get_torso_height_and_velocity_meas_fk()
+                meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
+                self.KF.correct(meas_full_state)
 
-                # send to controller
-                self.low_state.position[:] = self.KF.x[:3]
-                self.low_state.velocity[:] = self.KF.x[3:6]
-                self.low_state.quaternion[:] = self.vicon_tron1_quat
+            # send to controller
+            self.low_state.position[:] = self.KF.x[:3]
+            self.low_state.velocity[:] = self.KF.x[3:6]
+            self.low_state.quaternion[:] = self.vicon_tron1_quat
 
-                if self.in_replay_mode:
-                    # display in mujoco viewer
-                    self.mj_data.qpos[0] = self.low_state.position[0]
-                    self.mj_data.qpos[1] = self.low_state.position[1]
-                    self.mj_data.qpos[2] = self.low_state.position[2]
-                    self.mj_data.qpos[3] = self.low_state.quaternion[0]
-                    self.mj_data.qpos[4] = self.low_state.quaternion[1]
-                    self.mj_data.qpos[5] = self.low_state.quaternion[2]
-                    self.mj_data.qpos[6] = self.low_state.quaternion[3]
+            if self.in_replay_mode:
+                # display in mujoco viewer
+                self.mj_data.qpos[0] = self.low_state.position[0]
+                self.mj_data.qpos[1] = self.low_state.position[1]
+                self.mj_data.qpos[2] = self.low_state.position[2]
+                self.mj_data.qpos[3] = self.low_state.quaternion[0]
+                self.mj_data.qpos[4] = self.low_state.quaternion[1]
+                self.mj_data.qpos[5] = self.low_state.quaternion[2]
+                self.mj_data.qpos[6] = self.low_state.quaternion[3]
 
-                # visualization of the state estimation (red box and blue arrow)
-                self.vis_pos_est = self.KF.x[:3]
-                self.vis_vel_est = self.KF.x[3:6]
-                self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
-                self.vel_body = self.R_torso_global_rpy.T @ self.KF.x[3:6] # R_body_to_world
+            # visualization of the state estimation (red box and blue arrow)
+            self.vis_pos_est = self.KF.x[:3]
+            self.vis_vel_est = self.KF.x[3:6]
+            self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+            self.vel_body = self.R_torso_global_rpy.T @ self.KF.x[3:6] # R_body_to_world
 
-                # # visualization dt later
-                # dt = 0.1 # change manually if needed
-                # acc_est = acc_world
-                # pos_now = self.KF.x[:3] + self.KF.x[3:6] * dt + 0.5 * acc_est * dt * dt
-                # vel_now = self.KF.x[3:6] + acc_est * dt
-                # self.vis_pos_est = pos_now
-                # self.vis_vel_est = vel_now
-                # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+            # # visualization dt later
+            # dt = 0.1 # change manually if needed
+            # acc_est = acc_world
+            # pos_now = self.KF.x[:3] + self.KF.x[3:6] * dt + 0.5 * acc_est * dt * dt
+            # vel_now = self.KF.x[3:6] + acc_est * dt
+            # self.vis_pos_est = pos_now
+            # self.vis_vel_est = vel_now
+            # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
 
     def parse_robot_specific_low_state(self):
         # This function is called in simulation thread
 
-        # judge if in replay mode
-        if not self.in_replay_mode and not self.calibrated:
-            self._skip_calibration() # skip calibration when NOT in replay mode
         if self.in_replay_mode and self._rx_state_available:
             # use received position and velocity when in replay mode
             self.low_state.position[:] = self._rx_state_position
@@ -307,8 +280,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.qj_pos[:] = msg.qj_pos
         self.low_state.qj_vel[:] = msg.qj_vel
         self.low_state.qj_tau[:] = msg.qj_tau
-        self.low_state.acceleration[:] = msg.acceleration # - self.imu_acc_bias_body
-        self.low_state.omega[:] = msg.omega # - self.omega_bias_body
+        self.low_state.acceleration[:] = msg.acceleration
+        self.low_state.omega[:] = msg.omega
         self._rx_state_quaternion[:] = msg.quaternion
         self.low_state.rpy[:] = msg.rpy
         self._rx_state_position[:] = msg.position # copy because of write from another thread
@@ -534,7 +507,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self._vicon_daemon.reload()
             return
 
-        if self.calibrated and self._rx_state_available:
+        if self._rx_state_available:
             acc_body = np.array(self.low_state.acceleration, dtype=float)
             acc_world = R_body_to_world @ acc_body - self.gravity_add_bias
         else:
