@@ -13,6 +13,7 @@ from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 
 class SlidingBridge(Tron1WheeledBridge):
     def __init__(self, mj_model, mj_data, config):
+        config.robot_cmd_topic = "tron1_wheeled_control"
         super().__init__(mj_model, mj_data, config)
 
         self.vicon_slide_object_pos = np.zeros(3, dtype=float)
