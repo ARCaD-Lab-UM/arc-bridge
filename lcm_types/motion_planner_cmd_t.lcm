@@ -1,0 +1,20 @@
+package lcm_msgs;
+
+struct motion_planner_cmd_t
+{
+    int64_t  timestamp;
+
+    int8_t   requested_task;
+
+    int8_t   n_horizon;
+
+    double   t_plan[n_horizon];
+
+    double   Xout_trb_plan[n_horizon][28];
+
+    double   lambda_plan[n_horizon][6];
+    
+    boolean  is_stance_plan[n_horizon][2];
+
+    double   Xout_ob_plan[n_horizon][4];
+}

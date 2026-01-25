@@ -1,0 +1,14 @@
+package lcm_msgs;
+
+struct motion_planner_request_t
+{
+    int64_t  timestamp;
+
+    int8_t   requested_task;
+
+    double   X0_trb[28];
+
+    double   X0_ob[4];
+
+    double   phase;
+}
