@@ -177,10 +177,11 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.vis_vel_est = np.array(self.low_state.velocity[:3], dtype=float)
             self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
 
-            # send to controller
-            self.low_state.position[:] = self.vicon_tron1_pos
-            self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
-            self.low_state.quaternion[:] = self.vicon_tron1_quat
+            # send to controller only in replay mode
+            if self.in_replay_mode:
+                self.low_state.position[:] = self.vicon_tron1_pos
+                self.low_state.velocity[:] = self.vicon_tron1_lin_vel_world
+                self.low_state.quaternion[:] = self.vicon_tron1_quat
 
             if self.in_replay_mode:
                 # display in mujoco viewer

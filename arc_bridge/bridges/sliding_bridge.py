@@ -50,6 +50,7 @@ class SlidingBridge(Tron1WheeledBridge):
     def parse_robot_specific_low_state(self):
         super().parse_robot_specific_low_state()
 
+        # For simlulation, read from mj_data directly
         if not self.in_replay_mode:
             self.low_state.pos_ob[:] = self.mj_data.qpos[15:18]
             self.low_state.quat_ob[:] = self.mj_data.qpos[18:22]
@@ -79,10 +80,12 @@ class SlidingBridge(Tron1WheeledBridge):
             self.low_state.vel_ob[:] = self.slide_object_kf.x[3:6]
             self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world  # use directly
         else:
-            self.low_state.pos_ob[:] = self.vicon_slide_object_pos
-            self.low_state.quat_ob[:] = self.vicon_slide_object_quat
-            self.low_state.vel_ob[:] = self.vicon_slide_object_lin_vel_world
-            self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world
+            # send to controller only in replay mode
+            if self.in_replay_mode:
+                self.low_state.pos_ob[:] = self.vicon_slide_object_pos
+                self.low_state.quat_ob[:] = self.vicon_slide_object_quat
+                self.low_state.vel_ob[:] = self.vicon_slide_object_lin_vel_world
+                self.low_state.omega_ob[:] = self.vicon_slide_object_ang_omega_world
 
         if self.in_replay_mode:
             # display as what the controller sees
