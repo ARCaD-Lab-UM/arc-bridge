@@ -16,15 +16,23 @@ class SlidingBridge(Tron1WheeledBridge):
         config.robot_cmd_topic = "tron1_wheeled_control"
         super().__init__(mj_model, mj_data, config)
 
+        # select which object to use
+        self.select_slide_object = "large"  # "large" or "small"
+
         self.vicon_slide_object_pos = np.zeros(3, dtype=float)
         self.vicon_slide_object_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=float)
         self.vicon_slide_object_lin_vel_world = np.zeros(3, dtype=float)
         self.vicon_slide_object_ang_omega_world = np.zeros(3, dtype=float)
         # Transformation from vicon slide object measurement frame to base_link frame
         self.T_vicon_slide_object_meas_to_base_link = np.eye(4, dtype=float)
-        self.T_vicon_slide_object_meas_to_base_link[:3, 3] = np.array([0.0, 0.0, -0.010])
+        if self.select_slide_object == "large":
+            self.T_vicon_slide_object_meas_to_base_link[:3, 3] = np.array([-0.16, 0.0, -0.010]) # large slide_object
+            slide_object_topic = "/odometry/slide_object"
+        else:
+            self.T_vicon_slide_object_meas_to_base_link[:3, 3] = np.array([-0.06, 0.1, -0.010]) # small slide_object
+            slide_object_topic = "/odometry/slide_object_small"
         if self.in_replay_mode and self.vicon_ros2_client is not None:
-            self.vicon_ros2_client.subscribe_slide_object(self._vicon_slide_object_callback, topic="/odometry/slide_object")
+            self.vicon_ros2_client.subscribe_slide_object(self._vicon_slide_object_callback, topic=slide_object_topic)
 
         self.slide_object_height_init = 0.0
         self.slide_object_dt_estimator = 0.001
