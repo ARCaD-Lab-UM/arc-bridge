@@ -1,7 +1,7 @@
 import numpy as np
 import mujoco
 
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.utils import *
 
 class BipedPointfootBridge(Lcm2MujocoBridge):

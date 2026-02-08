@@ -98,7 +98,7 @@ The ARC Bridge is a cross-platform software bridge of a nominal robot controller
     import mujoco
     import numpy as np
 
-    from .lcm2mujuco_bridge import Lcm2MujocoBridge
+    from .lcm2mujoco_bridge import Lcm2MujocoBridge
     from arc_bridge.lcm_msgs import your_robot_state_t, your_robot_control_t
     from arc_bridge.utils import *
 

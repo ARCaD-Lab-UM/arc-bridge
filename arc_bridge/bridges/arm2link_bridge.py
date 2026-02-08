@@ -1,7 +1,7 @@
 import mujoco
 import numpy as np
 
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.utils import *
 
 class Arm2linkBridge(Lcm2MujocoBridge):

@@ -7,8 +7,23 @@ struct gamepad_cmd_t
     double   vx;
     double   vy;
     double   wz;
-
     boolean  e_stop;
 
+    double   pitch;
+
     int8_t   params[2]; // D-Pad values
+
+    boolean  btn_up; // Face button
+    boolean  btn_left;
+    boolean  btn_down;
+    boolean  btn_right;
+
+    boolean  btn_lb; // Bumper
+    boolean  btn_rb;
+
+    boolean  btn_lstick; // Stick press
+    boolean  btn_rstick;
+
+    double lt; // Trigger
+    double rt;
 }
