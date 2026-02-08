@@ -61,12 +61,13 @@ class HopperBridge(Lcm2MujocoBridge):
         foot_pos_body_frame = self.state_estimator.foot_pos_body_frame(self.low_state.qj_pos)
         foot_vel_body_frame = self.state_estimator.foot_vel_body_frame(self.low_state.qj_pos, self.low_state.qj_vel)
         vel_measured = -R_body @ (np.cross(omega_body, foot_pos_body_frame) + foot_vel_body_frame)
-        # height_measured = -(R_body @ foot_pos_body_frame)[-1]
+        height_measured = -(R_body @ foot_pos_body_frame)[-1]
 
-        #* We can measure the ground truth height from the gantry encoder
-        height_measured = self.low_state.position[2]
         if self.low_cmd.contact:
             se_state = self.state_estimator.correct(np.append(height_measured, vel_measured))
+
+        # Update ground truth height from gantry encoder
+        self.state_estimator.correct(np.array([self.low_state.position[2], *se_state[3:6]]))
 
         pos_est = se_state[:3]
         vel_est = se_state[3:]

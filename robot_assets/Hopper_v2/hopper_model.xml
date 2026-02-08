@@ -107,8 +107,8 @@
   </actuator>
 
   <sensor>
-    <jointpos name="thigh_pos" joint="thigh_joint" noise="0.01"/>
-    <jointpos name="calf_pos" joint="calf_joint" noise="0.01"/>
+    <jointpos name="thigh_pos" joint="thigh_joint" noise="0.001"/>
+    <jointpos name="calf_pos" joint="calf_joint" noise="0.001"/>
 
     <jointvel name="thigh_vel" joint="thigh_joint" noise="0.01"/>
     <jointvel name="calf_vel" joint="calf_joint" noise="0.01"/>
@@ -116,7 +116,7 @@
     <jointactuatorfrc name="thigh_torque" joint="thigh_joint" noise="0.01"/>
     <jointactuatorfrc name="calf_torque" joint="calf_joint" noise="0.01"/>
 
-    <framequat name="imu_quat" objtype="site" objname="imu" noise="0.01"/>
+    <framequat name="imu_quat" objtype="site" objname="imu" noise="0.001"/>
     <gyro name="imu_gyro" site="imu" noise="0.01"/>
     <accelerometer name="imu_acc" site="imu" noise="0.01"/>
 
