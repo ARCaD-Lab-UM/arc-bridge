@@ -1,7 +1,7 @@
 import numpy as np
 import time
 
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.state_estimators import HopperStateEstimator
 from arc_bridge.lcm_msgs import hopper_state_t, hopper_control_t
 from arc_bridge.utils import *

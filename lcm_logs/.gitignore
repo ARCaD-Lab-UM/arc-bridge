@@ -1,0 +1,8 @@
+# Ignore everything by default
+*
+
+# Except these files
+!.gitignore
+!lcm_logs.md
+!record_lcm.sh
+!play_lcm.sh
