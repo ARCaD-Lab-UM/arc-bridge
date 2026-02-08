@@ -192,3 +192,15 @@ export __GLX_VENDOR_LIBRARY_NAME=nvidia
 
 Downgrade `mujoco` to 3.2.2 and `numpy` to 1.21.6 manually.
 </details>
+
+
+## Citation
+If you use this software, please consider citing:
+```bibtex
+@software{zhuang2026arcbridge,
+  title={{Agile Robot Control (ARC) Bridge}},
+  author={Zhuang, Yulun and Qin, Yue and Shen, Zelin},
+  year={2026},
+  url={https://github.com/ARCaD-Lab-UM/arc-bridge},
+}
+```
