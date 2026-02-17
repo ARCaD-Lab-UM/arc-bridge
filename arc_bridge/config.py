@@ -23,7 +23,16 @@ class Config:
     }
     valid_robot_types = list(robot_path_dict.keys())
 
-    def __init__(self, robot_type, control_delay: float = 0.0, sensor_delay: float = 0.0, lcm_cmd_online_jitter_time_ms: float = 10.0, lcm_cmd_offline_time_ms: float = 200.0, launch_args=None):
+    def __init__(
+        self,
+        robot_type,
+        control_delay: float = 0.0,
+        sensor_delay: float = 0.0,
+        lcm_cmd_online_jitter_time_ms: float = 10.0,
+        lcm_cmd_offline_time_ms: float = 200.0,
+        lcm_udp_multicast_group=None,  # string of LCM UDP multicast group
+        launch_args=None,
+    ):
         self.launch_args = launch_args
         self.robot_type = robot_type
         if self.robot_type not in self.valid_robot_types:
@@ -42,3 +51,4 @@ class Config:
         self.sensor_delay = float(sensor_delay)  # milliseconds
         self.lcm_cmd_online_jitter_time_ms = float(lcm_cmd_online_jitter_time_ms)
         self.lcm_cmd_offline_time_ms = float(lcm_cmd_offline_time_ms)
+        self.lcm_udp_multicast_group = lcm_udp_multicast_group

@@ -8,7 +8,12 @@ from arc_bridge.utils import *
 
 class HopperBridge(Lcm2MujocoBridge):
     def __init__(self, mj_model, mj_data, config):
+        launch_args = getattr(config, "launch_args", None)
+        in_replay_mode = bool(getattr(launch_args, "replay", False))
+        if in_replay_mode:
+            config.lcm_udp_multicast_group = "udpm://239.255.76.67:7667?ttl=1"
         super().__init__(mj_model, mj_data, config)
+        self.in_replay_mode = in_replay_mode
         # State estimator
         self.state_estimator = HopperStateEstimator(self.config.dt_sim)
         self.thr_counter = 0

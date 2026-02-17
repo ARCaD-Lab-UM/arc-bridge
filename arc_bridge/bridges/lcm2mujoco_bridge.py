@@ -54,13 +54,14 @@ class Lcm2MujocoBridge:
         print(f"=> num foot sensor: {self.num_foot_sensor}")
 
         # LCM messages
-        self.lc = lcm.LCM()
+        udp_multicast_group = getattr(self.config, "lcm_udp_multicast_group", None)
+        self.lc = lcm.LCM(udp_multicast_group) if udp_multicast_group else lcm.LCM()
         self.low_state_type = eval(self.topic_state + "_t")
         self.low_state = self.low_state_type()
         self.low_cmd_type = eval(self.topic_cmd + "_t")
         self.low_cmd = self.low_cmd_type()
-        self.control_delay = max(config.control_delay, 0.0)
-        self.sensor_delay = max(config.sensor_delay, 0.0)
+        self.control_delay = max(self.config.control_delay, 0.0)
+        self.sensor_delay = max(self.config.sensor_delay, 0.0)
         control_delay_s = self.control_delay / 1000.0
         sensor_delay_s = self.sensor_delay / 1000.0
         self.control_delay_steps = int(round(control_delay_s / self.dt)) if self.dt > 0 and control_delay_s > 0 else 0
