@@ -8,7 +8,6 @@ import mujoco.viewer
 import numpy as np
 
 from arc_bridge.config import Config
-import arc_bridge.bridges as _bridges_module
 from arc_bridge.bridges import *
 
 
@@ -110,8 +109,8 @@ def main():
     # Initialize bridge
     try:
         bridge_name = "".join([s.capitalize() for s in robot_type.split("_")]) + "Bridge"
-        bridge = getattr(_bridges_module, bridge_name)(mj_model, mj_data, robot_config)
-    except AttributeError as e:
+        bridge = eval(bridge_name)(mj_model, mj_data, robot_config)
+    except NameError as e:
         bridge = Lcm2MujocoBridge(mj_model, mj_data, robot_config)
         print(f"=> Error: {e}")
         print(f"=> Constructing {bridge_name} failed. Using default bridge.")
