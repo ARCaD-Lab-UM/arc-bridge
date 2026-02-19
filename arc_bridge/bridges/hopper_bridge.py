@@ -90,7 +90,7 @@ class HopperBridge(Lcm2MujocoBridge):
         if self.mj_data == None:
             return
 
-        msg = eval(self.topic_state+"_t").decode(data)
+        msg = self.low_state_type.decode(data)
         self.mj_data.qpos[0] = msg.position[0]
         # Subtract IMU offset to get torso height,
         # since torso center is the actual rotation center,

@@ -10,6 +10,7 @@ from threading import Thread
 from abc import abstractmethod
 
 from arc_bridge.utils import *
+import arc_bridge.lcm_msgs as _lcm_msgs
 from arc_bridge.lcm_msgs import *
 
 MOTOR_SENSOR_NUM = 3  # pos, vel, torque
@@ -56,9 +57,9 @@ class Lcm2MujocoBridge:
         # LCM messages
         udp_multicast_group = getattr(self.config, "lcm_udp_multicast_group", None)
         self.lc = lcm.LCM(udp_multicast_group) if udp_multicast_group else lcm.LCM()
-        self.low_state_type = eval(self.topic_state + "_t")
+        self.low_state_type = getattr(_lcm_msgs, self.topic_state + "_t")
         self.low_state = self.low_state_type()
-        self.low_cmd_type = eval(self.topic_cmd + "_t")
+        self.low_cmd_type = getattr(_lcm_msgs, self.topic_cmd + "_t")
         self.low_cmd = self.low_cmd_type()
         self.control_delay = max(self.config.control_delay, 0.0)
         self.sensor_delay = max(self.config.sensor_delay, 0.0)

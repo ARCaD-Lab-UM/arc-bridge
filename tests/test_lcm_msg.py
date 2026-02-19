@@ -43,13 +43,12 @@ class TestLcmTypeFunctionality:
 
     def test_dynamic_message_import(self):
         """Test dynamic import of LCM messages like the bridge does"""
-        # Test the eval-based import pattern used in the bridge
+        # Test the getattr-based import pattern used in the bridge
         try:
             # This simulates how the bridge dynamically imports message types
+            import arc_bridge.lcm_msgs as lcm_msgs
             topic_name = "gamepad_cmd"
-            msg_class = eval(
-                f"__import__('arc_bridge.lcm_msgs', fromlist=['{topic_name}_t']).{topic_name}_t"
-            )
+            msg_class = getattr(lcm_msgs, f"{topic_name}_t")
             assert msg_class is not None
 
             # Test instantiation
@@ -128,9 +127,10 @@ class TestLcmTypeFunctionality:
         try:
             from arc_bridge.lcm_msgs import gamepad_cmd_t
 
-            # Create a message using the bridge's eval pattern
+            # Create a message using the bridge's getattr pattern
             topic_cmd = "gamepad_cmd"
-            original_msg = eval(f"{topic_cmd}_t")()
+            import arc_bridge.lcm_msgs as lcm_msgs
+            original_msg = getattr(lcm_msgs, f"{topic_cmd}_t")()
             original_msg.timestamp = 1111111111
             original_msg.vx = 2.0
             original_msg.vy = 1.0
@@ -141,7 +141,7 @@ class TestLcmTypeFunctionality:
             encoded_data = original_msg.encode()
 
             # Decode using bridge pattern
-            decoded_msg = eval(f"{topic_cmd}_t").decode(encoded_data)
+            decoded_msg = getattr(lcm_msgs, f"{topic_cmd}_t").decode(encoded_data)
 
             # Verify
             assert decoded_msg.timestamp == original_msg.timestamp

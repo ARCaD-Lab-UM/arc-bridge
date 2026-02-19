@@ -361,7 +361,7 @@ class Tron1PointfootBridge(Lcm2MujocoBridge):
         if self.mj_data == None:
             return
 
-        msg = eval(self.topic_state+"_t").decode(data)
+        msg = self.low_state_type.decode(data)
         self.mj_data.qpos[0] = msg.position[0]
         self.mj_data.qpos[1] = msg.position[1]
         self.mj_data.qpos[2] = self.low_state.position[2]

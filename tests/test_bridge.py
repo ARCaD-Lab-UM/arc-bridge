@@ -121,22 +121,11 @@ class TestBridgeFunctionality:
         # Mock gamepad to raise exception (no gamepad found)
         mock_gamepad_class.side_effect = Exception("No gamepad found")
 
-        # Use real LCM message classes
-        with patch("arc_bridge.bridges.lcm2mujoco_bridge.eval") as mock_eval:
+        bridge = Lcm2MujocoBridge(mock_mujoco_model, mock_mujoco_data, mock_config)
+        bridge.low_state = hopper_state_msg
+        bridge.low_cmd = hopper_control_msg
 
-            def eval_side_effect(expr):
-                if "state" in expr:
-                    return hopper_state_t
-                else:
-                    return hopper_control_t
-
-            mock_eval.side_effect = eval_side_effect
-
-            bridge = Lcm2MujocoBridge(mock_mujoco_model, mock_mujoco_data, mock_config)
-            bridge.low_state = hopper_state_msg
-            bridge.low_cmd = hopper_control_msg
-
-            return bridge
+        return bridge
 
     def test_bridge_initialization(self, mock_bridge, mock_mujoco_model):
         """Test that bridge initializes correctly with mocked dependencies"""
@@ -188,16 +177,15 @@ class TestBridgeFunctionality:
         # Encode the message to bytes
         encoded_data = hopper_cmd.encode()
 
-        with patch("builtins.eval", return_value=hopper_control_t):
-            mock_bridge.lcm_cmd_handler("hopper_control", encoded_data)
+        mock_bridge.lcm_cmd_handler("hopper_control", encoded_data)
 
-            assert mock_bridge.low_cmd_received == True
-            # Verify the decoded message has the expected values
-            assert len(mock_bridge.low_cmd.qj_pos) == 2
-            assert len(mock_bridge.low_cmd.qj_vel) == 2
-            assert len(mock_bridge.low_cmd.qj_tau) == 2
-            assert mock_bridge.low_cmd.qj_pos[0] == 0.5
-            assert mock_bridge.low_cmd.contact == True
+        assert mock_bridge.low_cmd_received == True
+        # Verify the decoded message has the expected values
+        assert len(mock_bridge.low_cmd.qj_pos) == 2
+        assert len(mock_bridge.low_cmd.qj_vel) == 2
+        assert len(mock_bridge.low_cmd.qj_tau) == 2
+        assert mock_bridge.low_cmd.qj_pos[0] == 0.5
+        assert mock_bridge.low_cmd.contact == True
 
     def test_lcm_cmd_handler_with_none_data(self, mock_bridge):
         """Test command handler when mj_data is None"""
@@ -354,21 +342,20 @@ class TestBridgeFunctionality:
         # Encode the message to bytes
         encoded_cmd_data = hopper_cmd.encode()
 
-        with patch("builtins.eval", return_value=hopper_control_t):
-            # Process command using the correct channel name that matches bridge topic_cmd
-            mock_bridge.lcm_cmd_handler(mock_bridge.topic_cmd, encoded_cmd_data)
+        # Process command using the correct channel name that matches bridge topic_cmd
+        mock_bridge.lcm_cmd_handler(mock_bridge.topic_cmd, encoded_cmd_data)
 
-            # Verify command was received
-            assert mock_bridge.low_cmd_received == True
+        # Verify command was received
+        assert mock_bridge.low_cmd_received == True
 
-            # Update motor commands
-            mock_bridge.update_motor_cmd()
+        # Update motor commands
+        mock_bridge.update_motor_cmd()
 
-            # Verify control values were updated
-            assert len(mock_bridge.mj_data.ctrl) == 2
+        # Verify control values were updated
+        assert len(mock_bridge.mj_data.ctrl) == 2
 
-            # Publish state
-            with patch.object(mock_bridge, "parse_robot_specific_low_state"):
-                mock_bridge.publish_low_state()
+        # Publish state
+        with patch.object(mock_bridge, "parse_robot_specific_low_state"):
+            mock_bridge.publish_low_state()
 
-                mock_bridge.lc.publish.assert_called()
+            mock_bridge.lc.publish.assert_called()
