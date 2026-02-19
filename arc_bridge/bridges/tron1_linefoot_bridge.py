@@ -390,7 +390,7 @@ class Tron1LinefootBridge(Lcm2MujocoBridge):
         if self.mj_data == None:
             return
         # Get state msg from robot SDK topic
-        msg = eval(self.topic_state+"_t").decode(data)
+        msg = self.low_state_type.decode(data)
 
         # Update mj_data for visualization
         self.mj_data.qpos[0] = self.low_state.position[0]
