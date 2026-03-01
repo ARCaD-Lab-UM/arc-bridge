@@ -161,20 +161,6 @@ class Gamepad:
             elif event.state == 1:
                 self._update_params(1, 1)
 
-        elif event.ev_type == "Absolute" and event.code == "ABS_HAT0Y":
-            # D-pad up/down
-            if event.state == -1:
-                self.params[0] += 1  # e.g., increase speed
-            elif event.state == 1:
-                self.params[0] += -1  # e.g., decrease speed
-
-        elif event.ev_type == "Absolute" and event.code == "ABS_HAT0X":
-            # D-pad left/right
-            if event.state == -1:
-                self.params[1] += -1  # e.g., previous gait
-            elif event.state == 1:
-                self.params[1] += 1  # e.g., next gait
-
         if self._estop_flagged and self._lj_pressed:
             self._estop_flagged = False
             print("Estop Released.")
