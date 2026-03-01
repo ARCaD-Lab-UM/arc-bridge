@@ -15,7 +15,7 @@ def _default_time_ms() -> float:
     return time.monotonic_ns() / 1_000_000.0  # convert to milliseconds with sub-ms resolution
 
 
-@dataclass(slots=True)
+@dataclass
 class DaemonConfig:
     # just online wait time (unstable time); wait time after offline to consider online (ms)
     set_online_jitter_time_ms: float

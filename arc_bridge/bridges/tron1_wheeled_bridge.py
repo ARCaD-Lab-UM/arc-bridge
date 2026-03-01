@@ -9,7 +9,7 @@ from nav_msgs.msg import Odometry # ROS2 Vicon
 import pinocchio as pin
 
 from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, Tron1WheeledFloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t, tron1_wheeled_plan_t
 from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 from arc_bridge.utils import *

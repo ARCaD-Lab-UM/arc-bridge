@@ -1,14 +1,19 @@
 import numpy as np
 import time
 
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.state_estimators import HopperStateEstimator
 from arc_bridge.lcm_msgs import hopper_state_t, hopper_control_t
 from arc_bridge.utils import *
 
 class HopperBridge(Lcm2MujocoBridge):
     def __init__(self, mj_model, mj_data, config):
+        launch_args = getattr(config, "launch_args", None)
+        in_replay_mode = bool(getattr(launch_args, "replay", False))
+        if in_replay_mode:
+            config.lcm_udp_multicast_group = "udpm://239.255.76.67:7667?ttl=1"
         super().__init__(mj_model, mj_data, config)
+        self.in_replay_mode = in_replay_mode
         # State estimator
         self.state_estimator = HopperStateEstimator(self.config.dt_sim)
         self.thr_counter = 0
@@ -49,7 +54,7 @@ class HopperBridge(Lcm2MujocoBridge):
         else:
             self.thr_counter = 0
 
-        # print(f"GT: {self.low_state.foot_force[0]:.5f}\t EST {curr_q_knee_pose_err:.5f}")
+        # print(f"GT: {self.low_state.foot_force[0]>0}\t EST {self.low_cmd.contact}")
 
         if is_estimated_contact:
             self.low_state.foot_force[0] = 1
@@ -62,8 +67,12 @@ class HopperBridge(Lcm2MujocoBridge):
         foot_vel_body_frame = self.state_estimator.foot_vel_body_frame(self.low_state.qj_pos, self.low_state.qj_vel)
         vel_measured = -R_body @ (np.cross(omega_body, foot_pos_body_frame) + foot_vel_body_frame)
         height_measured = -(R_body @ foot_pos_body_frame)[-1]
+
         if self.low_cmd.contact:
             se_state = self.state_estimator.correct(np.append(height_measured, vel_measured))
+
+        # Update ground truth height from gantry encoder
+        self.state_estimator.correct(np.array([self.low_state.position[2], *se_state[3:6]]))
 
         pos_est = se_state[:3]
         vel_est = se_state[3:]
@@ -81,7 +90,7 @@ class HopperBridge(Lcm2MujocoBridge):
         if self.mj_data == None:
             return
 
-        msg = eval(self.topic_state+"_t").decode(data)
+        msg = self.low_state_type.decode(data)
         self.mj_data.qpos[0] = msg.position[0]
         # Subtract IMU offset to get torso height,
         # since torso center is the actual rotation center,

@@ -54,13 +54,14 @@ class Lcm2MujocoBridge:
         print(f"=> num foot sensor: {self.num_foot_sensor}")
 
         # LCM messages
-        self.lc = lcm.LCM()
+        udp_multicast_group = getattr(self.config, "lcm_udp_multicast_group", None)
+        self.lc = lcm.LCM(udp_multicast_group) if udp_multicast_group else lcm.LCM()
         self.low_state_type = eval(self.topic_state + "_t")
         self.low_state = self.low_state_type()
         self.low_cmd_type = eval(self.topic_cmd + "_t")
         self.low_cmd = self.low_cmd_type()
-        self.control_delay = max(config.control_delay, 0.0)
-        self.sensor_delay = max(config.sensor_delay, 0.0)
+        self.control_delay = max(self.config.control_delay, 0.0)
+        self.sensor_delay = max(self.config.sensor_delay, 0.0)
         control_delay_s = self.control_delay / 1000.0
         sensor_delay_s = self.sensor_delay / 1000.0
         self.control_delay_steps = int(round(control_delay_s / self.dt)) if self.dt > 0 and control_delay_s > 0 else 0
@@ -83,14 +84,18 @@ class Lcm2MujocoBridge:
         self._lcm_cmd_print_throttle = PrintThrottle(self._lcm_cmd_print_interval_s)
         self._lcm_cmd_spy = None
         # self._lcm_cmd_spy = DaemonSpy(window_size=200)
-        self._lcm_cmd_daemon = Daemon(
-            DaemonConfig(
-                set_online_jitter_time_ms=self.config.lcm_cmd_online_jitter_time_ms,
-                set_offline_time_ms=self.config.lcm_cmd_offline_time_ms,
-                owner_id="lcm-control",
-            ),
-            spy=self._lcm_cmd_spy
-        )
+        disable_daemon = getattr(self.config.launch_args, 'disable_daemon', False)
+        if disable_daemon:
+            self._lcm_cmd_daemon = None
+        else:
+            self._lcm_cmd_daemon = Daemon(
+                DaemonConfig(
+                    set_online_jitter_time_ms=self.config.lcm_cmd_online_jitter_time_ms,
+                    set_offline_time_ms=self.config.lcm_cmd_offline_time_ms,
+                    owner_id="lcm-control",
+                ),
+                spy=self._lcm_cmd_spy
+            )
         self._lcm_cmd_seen = False
 
         # Gamepad controller
@@ -124,7 +129,7 @@ class Lcm2MujocoBridge:
         return cmd_to_return
 
     def _print_lcm_cmd_daemon(self) -> None:
-        if self._lcm_cmd_spy is None:
+        if self._lcm_cmd_daemon is None or self._lcm_cmd_spy is None:
             return
         if self._lcm_cmd_print_interval_s <= 0.0:
             return
@@ -143,7 +148,8 @@ class Lcm2MujocoBridge:
         self.low_cmd = self.low_cmd_type.decode(data)
         self.low_cmd_received = True
         self._lcm_cmd_seen = True
-        self._lcm_cmd_daemon.reload()
+        if self._lcm_cmd_daemon is not None:
+            self._lcm_cmd_daemon.reload()
 
     @abstractmethod
     def lcm_state_handler(self, channel, data):
@@ -294,11 +300,12 @@ class Lcm2MujocoBridge:
         self.lc.publish(self.topic_gamepad, self.gamepad_cmd.encode())
 
     def update_motor_cmd(self):
-        self._lcm_cmd_daemon.update()
-        self._print_lcm_cmd_daemon()
-        if self._lcm_cmd_daemon.is_error():
-            self.mj_data.ctrl[:] = 0.0
-            return
+        if self._lcm_cmd_daemon is not None:
+            self._lcm_cmd_daemon.update()
+            self._print_lcm_cmd_daemon()
+            if self._lcm_cmd_daemon.is_error():
+                self.mj_data.ctrl[:] = 0.0
+                return
         cmd = self._compute_delayed_low_cmd()
         for i in range(self.num_motor):
             motor_torque_limits = self.mj_model.actuator_ctrlrange[i]

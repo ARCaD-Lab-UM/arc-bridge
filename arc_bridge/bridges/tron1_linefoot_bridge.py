@@ -3,7 +3,7 @@ import numpy as np
 import pinocchio as pin
 
 from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_linefoot_state_t, tron1_linefoot_control_t
 from arc_bridge.utils import *
 
@@ -390,7 +390,7 @@ class Tron1LinefootBridge(Lcm2MujocoBridge):
         if self.mj_data == None:
             return
         # Get state msg from robot SDK topic
-        msg = eval(self.topic_state+"_t").decode(data)
+        msg = self.low_state_type.decode(data)
 
         # Update mj_data for visualization
         self.mj_data.qpos[0] = self.low_state.position[0]

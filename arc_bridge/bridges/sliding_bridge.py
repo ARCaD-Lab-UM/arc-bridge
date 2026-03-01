@@ -4,7 +4,7 @@ import pdb
 import pinocchio as pin
 from nav_msgs.msg import Odometry
 
-from .lcm2mujuco_bridge import Lcm2MujocoBridge
+from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from .tron1_wheeled_bridge import Tron1WheeledBridge
 from arc_bridge.utils import *
 from arc_bridge.state_estimators import SlideObjectFloatingBaseLinearStateEstimator

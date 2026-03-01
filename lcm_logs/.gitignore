@@ -3,6 +3,6 @@
 
 # Except these files
 !.gitignore
-!readme.txt
+!lcm_logs.md
 !record_lcm.sh
 !play_lcm.sh

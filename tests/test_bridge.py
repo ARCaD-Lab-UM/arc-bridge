@@ -11,7 +11,7 @@ mock_mujoco.mjtObj = Mock()
 mock_mujoco.mjtObj.mjOBJ_SENSOR = 6  # Sensor object type
 sys.modules['mujoco'] = mock_mujoco
 
-from arc_bridge.bridges.lcm2mujuco_bridge import Lcm2MujocoBridge
+from arc_bridge.bridges.lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs.hopper_control_t import hopper_control_t
 from arc_bridge.lcm_msgs.hopper_state_t import hopper_state_t
 from arc_bridge.config import Config
@@ -56,7 +56,11 @@ class TestBridgeFunctionality:
     @pytest.fixture
     def mock_config(self):
         """Create a hopper config using the Config class"""
-        return Config("hopper")
+        config = Config("hopper")
+        launch_args = Mock()
+        launch_args.disable_daemon = True
+        config.launch_args = launch_args
+        return config
 
     @pytest.fixture
     def hopper_state_msg(self):
@@ -89,8 +93,8 @@ class TestBridgeFunctionality:
         return hopper_control
 
     @pytest.fixture
-    @patch("arc_bridge.bridges.lcm2mujuco_bridge.lcm.LCM")
-    @patch("arc_bridge.bridges.lcm2mujuco_bridge.Gamepad")
+    @patch("arc_bridge.bridges.lcm2mujoco_bridge.lcm.LCM")
+    @patch("arc_bridge.bridges.lcm2mujoco_bridge.Gamepad")
     def mock_bridge(
         self,
         mock_gamepad_class,
@@ -118,7 +122,7 @@ class TestBridgeFunctionality:
         mock_gamepad_class.side_effect = Exception("No gamepad found")
 
         # Use real LCM message classes
-        with patch("arc_bridge.bridges.lcm2mujuco_bridge.eval") as mock_eval:
+        with patch("arc_bridge.bridges.lcm2mujoco_bridge.eval") as mock_eval:
 
             def eval_side_effect(expr):
                 if "state" in expr:
@@ -285,7 +289,7 @@ class TestBridgeFunctionality:
         calls = mock_bridge.lc.subscribe.call_args_list
         assert any(call[0][0] == custom_topic for call in calls)
 
-    @patch("arc_bridge.bridges.lcm2mujuco_bridge.Thread")
+    @patch("arc_bridge.bridges.lcm2mujoco_bridge.Thread")
     def test_lcm_thread_lifecycle(self, mock_thread_class, mock_bridge):
         """Test LCM thread start and stop"""
         mock_thread = Mock()

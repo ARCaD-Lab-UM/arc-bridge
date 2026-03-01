@@ -64,6 +64,7 @@ def main():
     parser.add_argument("--sensor_delay", type=float, default=0.0, help="sensor delay in milliseconds before states are published")
     parser.add_argument("--lcm_cmd_online_jitter_time_ms", type=float, default=10.0, help="LCM command watchdog; just online wait time (unstable time); wait time after offline to consider online (ms)")
     parser.add_argument("--lcm_cmd_offline_time_ms", type=float, default=200.0, help="LCM command watchdog; offline timeout; time to consider offline if no update received (ms)")
+    parser.add_argument("--disable_daemon", action="store_true", help="flag to disable the watchdog")
     args = parser.parse_args()
 
     # Select robot type
