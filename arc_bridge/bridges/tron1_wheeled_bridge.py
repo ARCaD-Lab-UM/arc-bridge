@@ -14,6 +14,7 @@ from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t, 
 from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 from arc_bridge.utils import *
 from .vicon_ros2_client import ViconRos2Client
+from .tron1_wheeled_robot import Tron1WheeledRobot
 
 
 # Configure warnings
@@ -49,7 +50,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.T_vicon_tron1_meas_to_base_link[:3, 3] = np.array([0.0, 0.0, 0.020])
 
         # State Estimation mode
-        self.kf_mode = "vicon_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf"
+        self.kf_mode = "pinocchio_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf", "pinocchio_with_kf"
 
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
@@ -100,9 +101,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.height_init = 0.7
         self.dt_estimator = 0.001 # 1kHz
         # Process noise (px, py, pz, vx, vy, vz, ax, ay, az)
-        self.KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
         # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
-        self.KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]) 
+        self.KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
         self.KF = Tron1WheeledFloatingBaseLinearStateEstimator(self.dt_estimator, self.KF_Q, self.KF_R, self.height_init)
         # heuristic measurement noise scaling based on vicon delay; R = (1 + alpha * dt) * R0 only on pos and vel
         self.vicon_delay_alpha = 20.0
@@ -116,6 +117,15 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                     [0.0556,  -0.105, -0.2602]]).T # left and right, transposed
         self.wheel_radius = 0.127
         self.wheel_y_offset = 0.0435
+
+        # Pinocchio-based kinematic state estimator
+        self.pin_robot = None
+        if self.kf_mode == "pinocchio_with_kf":
+            self.pin_robot = Tron1WheeledRobot(
+                urdf_path=str(self.config.asset_root / "Tron1Wheeled" / "urdf" / "robot.urdf"),
+                joint_offsets=self.joint_offsets,
+                wheel_radius=self.wheel_radius,
+            )
 
 
         # contact positions and velocity
@@ -211,6 +221,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 meas = self.get_torso_height_and_velocity_meas_fk()
                 meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
                 self.KF.correct(meas_full_state)
+            elif self.kf_mode == "pinocchio_with_kf":
+                self.KF.predict(u=np.zeros(1))
+                # Use Pinocchio-based forward kinematics for correction.
+                # x/y are passed through from the previous KF state.
+                meas = self.get_torso_height_and_velocity_meas_pinocchio()
+                meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
+                self.KF.correct(meas_full_state)
 
             # send to controller
             self.low_state.position[:] = self.KF.x[:3]
@@ -288,6 +305,26 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._rx_state_position[:] = msg.position # copy because of write from another thread
         self._rx_state_velocity[:] = msg.velocity
         self._rx_state_available = True
+
+    def get_torso_height_and_velocity_meas_pinocchio(self):
+        # Use IMU rpy (msg.rpy) for the orientation
+        rpy = np.array(self.low_state.rpy, dtype=float)
+        omega_body = np.array(self.low_state.omega, dtype=float)
+        joint_pos = np.array(self.low_state.qj_pos, dtype=float)
+        joint_vel = np.array(self.low_state.qj_vel, dtype=float)
+        # latest known x/y
+        current_pos_xy = np.array(self.low_state.position[:2], dtype=float)
+
+        pos_world, vel_world, _ = self.pin_robot.estimate_torso_state(
+            joint_pos=joint_pos,
+            joint_vel=joint_vel,
+            rpy=rpy,
+            quaternion=np.array(self.low_state.quaternion, dtype=float),
+            omega_body=omega_body,
+            current_pos_xy=current_pos_xy,
+        )
+
+        return np.array([pos_world[0], pos_world[1], pos_world[2], vel_world[0], vel_world[1], vel_world[2],], dtype=float)
 
     def get_torso_height_and_velocity_meas_fk(self):
         #  calculate the kinematics in body frame first
