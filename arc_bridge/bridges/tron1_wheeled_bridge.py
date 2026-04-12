@@ -50,12 +50,14 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.T_vicon_tron1_meas_to_base_link[:3, 3] = np.array([0.0, 0.0, 0.020])
 
         # State Estimation mode
-        self.kf_mode = "pinocchio_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf", "pinocchio_with_kf"
+        self.kf_mode = "pinocchio_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf", "pinocchio_with_kf", "pinocchio_with_kf_vicon_assist"
+        self._kf_modes_using_vicon = {"vicon_no_kf", "vicon_with_kf", "pinocchio_with_kf_vicon_assist"}
+        self._kf_modes_using_pinocchio = {"pinocchio_with_kf", "pinocchio_with_kf_vicon_assist"}
 
         launch_args = getattr(self.config, "launch_args", None)
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
         self.vicon_ros2_client = None
-        if self.in_replay_mode and (self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf"):
+        if self.in_replay_mode and self.kf_mode in self._kf_modes_using_vicon:
             self.vicon_ros2_client = ViconRos2Client(node_name="arc_bridge_vicon_listener")
             self.vicon_ros2_client.start()
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
@@ -120,7 +122,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         # Pinocchio-based kinematic state estimator
         self.pin_robot = None
-        if self.kf_mode == "pinocchio_with_kf":
+        if self.kf_mode in self._kf_modes_using_pinocchio:
             self.pin_robot = Tron1WheeledRobot(
                 urdf_path=str(self.config.asset_root / "Tron1Wheeled" / "urdf" / "robot.urdf"),
                 joint_offsets=self.joint_offsets,
@@ -146,6 +148,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._rx_state_quaternion = np.array([1.0, 0.0, 0.0, 0.0])
         self._rx_state_position = np.zeros(3)
         self._rx_state_velocity = np.zeros(3)
+        self._rx_state_rpy = np.zeros(3)
         self._rx_state_available = False
 
     def _print_vicon_daemon(self) -> None:
@@ -164,7 +167,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self._vicon_print_throttle.print(f"[{prefix}] VICON daemon {status}: freq={freq_hz:.1f} Hz, min_dt={min_delta_ms:.3f} ms, max_dt={max_delta_ms:.3f} ms @ {_wall_time_hms()}")
 
     def update_state_estimation(self):
-        if self.in_replay_mode and (self.kf_mode == "vicon_no_kf" or self.kf_mode == "vicon_with_kf"):
+        if self.in_replay_mode and self.kf_mode in self._kf_modes_using_vicon:
             self._vicon_daemon.update()
             self._print_vicon_daemon()
             if not self._vicon_seen:
@@ -223,10 +226,18 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
                 self.KF.correct(meas_full_state)
             elif self.kf_mode == "pinocchio_with_kf":
                 self.KF.predict(u=np.zeros(1))
-                # Use Pinocchio-based forward kinematics for correction.
-                # x/y are passed through from the previous KF state.
                 meas = self.get_torso_height_and_velocity_meas_pinocchio()
-                meas_full_state = np.hstack((meas, acc_world)) # add acc measurement
+                meas_full_state = np.hstack((meas, acc_world))
+                self.KF.correct(meas_full_state)
+            elif self.kf_mode == "pinocchio_with_kf_vicon_assist":
+                # Same KF logic as pinocchio_with_kf, but vicon resets the odometry x/y in callback
+                self.KF.predict(u=np.zeros(1))
+                if not self.in_replay_mode:
+                    # in simulation: use ground truth to simulate vicon resets
+                    pos_gt = np.array(self.low_state.position[:3], dtype=float)
+                    self.pin_robot.reset_odometry(pos_gt[0], pos_gt[1])
+                meas = self.get_torso_height_and_velocity_meas_pinocchio()
+                meas_full_state = np.hstack((meas, acc_world))
                 self.KF.correct(meas_full_state)
 
             # send to controller
@@ -267,7 +278,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.low_state.position[:] = self._rx_state_position
             self.low_state.velocity[:] = self._rx_state_velocity
             self.low_state.quaternion[:] = self._rx_state_quaternion
-        
+            self.low_state.rpy[:] = self._rx_state_rpy
+
         # update the R torso global (based on vicon quaternion)
         self.R_torso_global_quat = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
@@ -301,28 +313,27 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.low_state.acceleration[:] = msg.acceleration
         self.low_state.omega[:] = msg.omega
         self._rx_state_quaternion[:] = msg.quaternion
-        self.low_state.rpy[:] = msg.rpy
+        self._rx_state_rpy[:] = msg.rpy
         self._rx_state_position[:] = msg.position # copy because of write from another thread
         self._rx_state_velocity[:] = msg.velocity
         self._rx_state_available = True
 
     def get_torso_height_and_velocity_meas_pinocchio(self):
-        # Use IMU rpy (msg.rpy) for the orientation
         rpy = np.array(self.low_state.rpy, dtype=float)
         omega_body = np.array(self.low_state.omega, dtype=float)
         joint_pos = np.array(self.low_state.qj_pos, dtype=float)
         joint_vel = np.array(self.low_state.qj_vel, dtype=float)
-        # latest known x/y
-        current_pos_xy = np.array(self.low_state.position[:2], dtype=float)
 
-        pos_world, vel_world, _ = self.pin_robot.estimate_torso_state(
+        pos_world, vel_world, odom_yaw, _ = self.pin_robot.estimate_torso_state(
             joint_pos=joint_pos,
             joint_vel=joint_vel,
             rpy=rpy,
             quaternion=np.array(self.low_state.quaternion, dtype=float),
             omega_body=omega_body,
-            current_pos_xy=current_pos_xy,
         )
+
+        # Overwrite low_state yaw
+        self.low_state.rpy[2] = odom_yaw
 
         return np.array([pos_world[0], pos_world[1], pos_world[2], vel_world[0], vel_world[1], vel_world[2],], dtype=float)
 
@@ -541,6 +552,22 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
             self.vicon_tron1_lin_vel_world[:] = vel_world
             self.vicon_tron1_ang_omega_world[:] = omega_world
+            self._vicon_seen = True
+            self._vicon_daemon.reload()
+            return
+
+        if self.kf_mode == "pinocchio_with_kf_vicon_assist":
+            # forward-predict position to compensate vicon latency
+            dt_clamped = min(max(dt, 0.0), 0.02)  # clamp to [0, 20ms]
+            if self._rx_state_available:
+                acc_body = np.array(self.low_state.acceleration, dtype=float)
+                acc_est = R_body_to_world @ acc_body - self.gravity_add_bias
+            else:
+                acc_est = np.zeros(3, dtype=float)
+            pos_now = pos + (vel_world + acc_est * dt_clamped) * dt_clamped  # semi-implicit Euler
+            self.pin_robot.reset_odometry(pos_now[0], pos_now[1])
+            # self.pin_robot.reset_odometry(pos[0], pos[1])  # without latency compensation for comparison
+            self.vicon_tron1_quat[:] = np.array([quat.w, quat.x, quat.y, quat.z], dtype=float)
             self._vicon_seen = True
             self._vicon_daemon.reload()
             return

@@ -1,8 +1,10 @@
 import os
+from threading import Lock
 
 import numpy as np
 import pinocchio as pin
 
+from arc_bridge.utils import wrap_to_pi_format
 
 class Tron1WheeledRobot:
     """Pinocchio-backed kinematic model + state estimator for the Tron1 wheeled.
@@ -60,6 +62,15 @@ class Tron1WheeledRobot:
         self.v_curr = np.zeros(self.pin_model.nv)   # nv
         self.last_yaw = 0.0
 
+        # Odometry state (thread-safe: reset_odometry may be called from vicon callback)
+        self._odom_lock = Lock()
+        self.odom_x = 0.0
+        self.odom_y = 0.0
+        self.odom_yaw = 0.0
+        self._odom_initialized = False
+        self._last_wheel_angles = np.zeros(2)  # [phi_L, phi_R] in rad
+        self.odometry_threshold = 0.004 #0.01  # rad, switching threshold
+
     def estimate_torso_state(
         self,
         joint_pos,
@@ -67,7 +78,6 @@ class Tron1WheeledRobot:
         rpy=None,
         quaternion=None,
         omega_body=None,
-        current_pos_xy=None,
     ):
         """Estimate torso height and linear velocity from FK + rolling contact.
 
@@ -77,17 +87,14 @@ class Tron1WheeledRobot:
             rpy (array-like, optional): roll/pitch/yaw from the IMU. rpy is preferred over quat. Defaults to None.
             quaternion (array-like, optional): full body quaternion (w, x, y, z). Defaults to None.
             omega_body (array-like, optional): body-frame angular velocity (3,) from the IMU. Defaults to None.
-            current_pos_xy (array-like, optional): optional latest known torso x/y in the world frame. Defaults to None.
 
         Raises:
             ValueError: mis-aligned input shapes, or both rpy and quaternion missing.
             ValueError: if joint_pos or joint_vel does not have length 8.
 
         Returns:
-            pos_world (np.ndarray, shape (3,)): torso position in the real world frame. pos_world[:2] is whatever 
-                current_pos_xy provided (or zeros), and pos_world[2] is the FK-derived torso height.
-            vel_world (np.ndarray, shape (3,)): torso linear velocity in
-                the world frame.
+            pos_world (np.ndarray, shape (3,)): torso position. x/y from odometry, z from FK.
+            vel_world (np.ndarray, shape (3,)): torso linear velocity in world frame.
             info (dict): per-leg estimates and debug info.
         """
         joint_pos = np.asarray(joint_pos, dtype=float).reshape(-1)
@@ -177,16 +184,23 @@ class Tron1WheeledRobot:
         height_mean = float(np.mean(height_estimates))
         vel_mean_yaw_aligned = np.mean(vel_estimates, axis=0)
 
-        # Rotate back to world frame
+        # Rotate back to real world frame
         R_yaw = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, yaw]))
         vel_world = R_yaw @ vel_mean_yaw_aligned
 
+        # Update odometry
+        wheel_angles = np.array([joint_pos[self.LEFT_WHEEL_JOINT_IDX], joint_pos[self.RIGHT_WHEEL_JOINT_IDX]])
+        p_contact = p_wheel + r_vecs_world  # (2, 3) in yaw-aligned frame
+        wheel_base_y = abs(p_contact[0, 1] - p_contact[1, 1])
+        self._update_odometry(wheel_angles, yaw, wheel_base_y)
+
+        # x/y from odometry, z from FK
         pos_world = np.zeros(3, dtype=float)
-        if current_pos_xy is not None:
-            pos_world[:2] = np.asarray(current_pos_xy, dtype=float).reshape(2)
+        with self._odom_lock:
+            pos_world[0] = self.odom_x
+            pos_world[1] = self.odom_y
         pos_world[2] = height_mean
 
-        # save for debugging
         self.q_curr = q_curr
         self.v_curr = v_curr
         self.last_yaw = yaw
@@ -194,12 +208,63 @@ class Tron1WheeledRobot:
         info = {
             "yaw": yaw,
             "rpy_aligned": rpy_aligned,
-            "p_wheel": p_wheel,  # (2, 3)
-            "r_vecs_world": r_vecs_world,  # (2, 3)
-            "height_per_leg": height_estimates,  # (2,)
-            "vel_per_leg_yaw_aligned": vel_estimates,  # (2, 3)
-            "vel_yaw_aligned": vel_mean_yaw_aligned,  # (3,)
-            "vel_world": vel_world,  # (3,)
-            "height_mean": height_mean,  # scalar
+            "p_wheel": p_wheel,
+            "r_vecs_world": r_vecs_world,
+            "height_per_leg": height_estimates,
+            "vel_per_leg_yaw_aligned": vel_estimates,
+            "vel_yaw_aligned": vel_mean_yaw_aligned,
+            "vel_world": vel_world,
+            "height_mean": height_mean,
+            "odom_x": self.odom_x,
+            "odom_y": self.odom_y,
+            "wheel_base_y": wheel_base_y,
         }
-        return pos_world, vel_world, info
+        return pos_world, vel_world, self.odom_yaw, info
+
+    def _update_odometry(self, wheel_angles, imu_yaw, wheel_base_y):
+        """Differential drive odometry via wheel encoder delta accumulation.
+
+        Gyrodometry: fuse wheel-odom yaw with IMU yaw. When odom and gyro agree on delta_yaw (within threshold), use odom (less drift).
+        When they disagree (e.g. wheel slip), trust the gyro.
+
+        Args:
+            wheel_angles: [phi_L, phi_R] total wheel encoder angles (rad).
+            imu_yaw: torso yaw from IMU (rad).
+            wheel_base_y: distance between left/right contact points in y (m).
+        """
+        with self._odom_lock:
+            if not self._odom_initialized:
+                self._last_wheel_angles[:] = wheel_angles
+                self.odom_yaw = imu_yaw
+                self._last_imu_yaw = imu_yaw
+                self._odom_initialized = True
+                return
+
+            delta_phi = wheel_angles - self._last_wheel_angles
+            self._last_wheel_angles[:] = wheel_angles
+
+            # Delta yaw from differential drive; [0] left
+            delta_yaw_odom = wrap_to_pi_format((delta_phi[1] - delta_phi[0]) * self.wheel_radius / max(wheel_base_y, 1e-3))
+            # Delta yaw from IMU
+            delta_yaw_gyro = wrap_to_pi_format(imu_yaw - self._last_imu_yaw)
+            self._last_imu_yaw = imu_yaw
+
+            # use odom delta when consistent, gyro when disagreement
+            if abs(delta_yaw_gyro - delta_yaw_odom) > self.odometry_threshold:
+                delta_yaw = delta_yaw_gyro  # wheel slip
+            else:
+                delta_yaw = delta_yaw_odom  # less drift
+
+            # Use mid-point yaw for better arc approximation
+            mid_yaw = wrap_to_pi_format(self.odom_yaw + 0.5 * delta_yaw)
+            self.odom_yaw = wrap_to_pi_format(self.odom_yaw + delta_yaw)
+
+            # Forward displacement
+            delta_s = (delta_phi[0] + delta_phi[1]) / 2.0 * self.wheel_radius
+            self.odom_x += delta_s * np.cos(mid_yaw)
+            self.odom_y += delta_s * np.sin(mid_yaw)
+
+    def reset_odometry(self, x=0.0, y=0.0):
+        with self._odom_lock:
+            self.odom_x = float(x)
+            self.odom_y = float(y)
