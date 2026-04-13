@@ -1,8 +1,12 @@
+from __future__ import annotations
 import mujoco
 import numpy as np
 import pdb
 import pinocchio as pin
-from nav_msgs.msg import Odometry
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nav_msgs.msg import Odometry  # type hint only, no runtime import
 
 from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from .tron1_wheeled_bridge import Tron1WheeledBridge

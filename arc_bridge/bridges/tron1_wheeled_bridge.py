@@ -1,3 +1,4 @@
+from __future__ import annotations
 import pdb
 import mujoco
 import warnings
@@ -5,7 +6,17 @@ import time
 import numpy as np
 # import pinocchio as pin
 from threading import Lock
-from nav_msgs.msg import Odometry # ROS2 Vicon
+from typing import TYPE_CHECKING
+
+try:
+    from .vicon_ros2_client import ViconRos2Client
+    HAS_ROS2 = True
+except ImportError:
+    HAS_ROS2 = False
+
+if TYPE_CHECKING:
+    from nav_msgs.msg import Odometry  # type hint only, no runtime import
+
 import pinocchio as pin
 
 from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, Tron1WheeledFloatingBaseLinearStateEstimator, MovingWindowFilter, OnlineAverage
@@ -13,7 +24,6 @@ from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_wheeled_state_t, tron1_wheeled_control_t, tron1_wheeled_plan_t
 from arc_bridge.lcm_msgs import sliding_state_t, sliding_control_t
 from arc_bridge.utils import *
-from .vicon_ros2_client import ViconRos2Client
 from .tron1_wheeled_robot import Tron1WheeledRobot
 
 
@@ -60,6 +70,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.in_replay_mode = bool(getattr(launch_args, "replay", False)) if launch_args else False
         self.vicon_ros2_client = None
         if self.in_replay_mode and self.kf_mode in self._kf_modes_using_vicon:
+            if not HAS_ROS2:
+                raise ImportError(f"kf_mode '{self.kf_mode}' requires ROS2 (nav_msgs, rclpy), but they are not installed.")
             self.vicon_ros2_client = ViconRos2Client(node_name="arc_bridge_vicon_listener")
             self.vicon_ros2_client.start()
             self.vicon_ros2_client.subscribe_tron1(callback=self._vicon_tron1_callback, topic="/odometry/tron1")
