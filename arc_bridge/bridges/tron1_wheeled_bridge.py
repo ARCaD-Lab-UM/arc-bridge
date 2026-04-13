@@ -27,7 +27,9 @@ warnings.simplefilter("once", Tron1WheeledWarning)    # default: once per locati
 # warnings.simplefilter("ignore", Tron1WheeledWarning)  # suppress
 # Color codes for terminal output
 RED = "\033[31m"
+GREEN = "\033[32m"
 YELLOW = "\033[33m"
+BLUE = "\033[34m"
 RESET = "\033[0m"
 
 
@@ -50,7 +52,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         self.T_vicon_tron1_meas_to_base_link[:3, 3] = np.array([0.0, 0.0, 0.020])
 
         # State Estimation mode
-        self.kf_mode = "pinocchio_with_kf" # "vicon_no_kf", "vicon_with_kf", "fk_with_kf", "pinocchio_with_kf", "pinocchio_with_kf_vicon_assist"
+        self.kf_mode = "pinocchio_with_kf" # "fk_with_kf", "vicon_no_kf", "vicon_with_kf", "pinocchio_with_kf", "pinocchio_with_kf_vicon_assist"
         self._kf_modes_using_vicon = {"vicon_no_kf", "vicon_with_kf", "pinocchio_with_kf_vicon_assist"}
         self._kf_modes_using_pinocchio = {"pinocchio_with_kf", "pinocchio_with_kf_vicon_assist"}
 
@@ -269,6 +271,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # self.vis_pos_est = pos_now
             # self.vis_vel_est = vel_now
             # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
+
+        # Handle reset request
+        if self.low_cmd.reset_se:
+            if self.pin_robot is not None:
+                self.pin_robot.reset_odometry()
+            self.KF.reset()
+            self._tron1_print_throttle.print(f"{GREEN}[INFO] Estimator reset{RESET} @ {_wall_time_hms()}")
 
     def parse_robot_specific_low_state(self):
         # This function is called in simulation thread
