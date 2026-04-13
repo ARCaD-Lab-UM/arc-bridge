@@ -11,6 +11,18 @@ mock_mujoco.mjtObj = Mock()
 mock_mujoco.mjtObj.mjOBJ_SENSOR = 6  # Sensor object type
 sys.modules['mujoco'] = mock_mujoco
 
+# Mock ROS2 modules
+mock_nav_msgs = Mock()
+mock_nav_msgs.msg = Mock()
+mock_nav_msgs.msg.Odometry = Mock()
+sys.modules['nav_msgs'] = mock_nav_msgs
+sys.modules['nav_msgs.msg'] = mock_nav_msgs.msg
+
+mock_rclpy = Mock()
+sys.modules['rclpy'] = mock_rclpy
+sys.modules['rclpy.node'] = Mock()
+sys.modules['rclpy.qos'] = Mock()
+
 from arc_bridge.bridges.lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs.hopper_control_t import hopper_control_t
 from arc_bridge.lcm_msgs.hopper_state_t import hopper_state_t
