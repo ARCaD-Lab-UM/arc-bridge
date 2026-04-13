@@ -257,7 +257,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # send to controller
             self.low_state.position[:] = self.KF.x[:3]
             self.low_state.velocity[:] = self.KF.x[3:6]
-            self.low_state.quaternion[:] = self.vicon_tron1_quat
+            if self.kf_mode in self._kf_modes_using_vicon:
+                self.low_state.quaternion[:] = self.vicon_tron1_quat  # only when using vicon
 
             if self.in_replay_mode:
                 # display in mujoco viewer
@@ -354,7 +355,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         )
 
         # Overwrite low_state yaw
-        self.low_state.rpy[2] = odom_yaw
+        # self.low_state.rpy[2] = odom_yaw
 
         return np.array([pos_world[0], pos_world[1], pos_world[2], vel_world[0], vel_world[1], vel_world[2],], dtype=float)
 
@@ -668,7 +669,8 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         desired_grf_traj = np.array(msg.lambda_des).reshape(n_horizon, 6)  # (n_horizon, 6)
 
         # Get current robot state for transformation from yaw-aligned frame to world frame
-        robot_pos = np.array(self.low_state.position[:3], dtype=float)
+        # Use mj_data pos ground truth in sim, or over-written in replay
+        robot_pos = np.array(self.mj_data.qpos[:3], dtype=float)  # self.low_state.position[:3]
         robot_pos[2] = 0.0  # ignore height
         robot_yaw = self.low_state.rpy[2]
         R_yaw = np.array([

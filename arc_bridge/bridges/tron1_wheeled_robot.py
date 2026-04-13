@@ -195,11 +195,13 @@ class Tron1WheeledRobot:
         torso_offset_yaw_aligned = -p_contacts_mid[:2]
 
         # Update odometry
-        wheel_angles = np.array([joint_pos[self.LEFT_WHEEL_JOINT_IDX], joint_pos[self.RIGHT_WHEEL_JOINT_IDX]])
+        wheel_angles_raw = np.array([joint_pos[self.LEFT_WHEEL_JOINT_IDX], joint_pos[self.RIGHT_WHEEL_JOINT_IDX]])
+        wheel_angles = np.array([wrap_to_pi_format(wheel_angles_raw[0]), wrap_to_pi_format(wheel_angles_raw[1])])
+        # print(f"[DEBUG] wheel_angles: L={wheel_angles[0]:.4f} R={wheel_angles[1]:.4f}")
         self._update_odometry(wheel_angles, yaw, wheel_base_y)
 
         # Rotate back to real world frame
-        R_yaw = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, self.odom_yaw]))  # can be either yaw or self.odom_yaw
+        R_yaw = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, yaw]))  # can be either yaw or self.odom_yaw
         vel_world = R_yaw @ vel_mean_yaw_aligned
         torso_offset_world = R_yaw @ np.array([torso_offset_yaw_aligned[0], torso_offset_yaw_aligned[1], 0.0])
         # cos_yaw = np.cos(yaw)
@@ -256,7 +258,7 @@ class Tron1WheeledRobot:
                 self._odom_initialized = True
                 return
 
-            delta_phi = wheel_angles - self._last_wheel_angles
+            delta_phi = np.array([wrap_to_pi_format(wheel_angles[i] - self._last_wheel_angles[i]) for i in range(2)])
             self._last_wheel_angles[:] = wheel_angles
 
             # Delta yaw from differential drive; [0] left
@@ -272,13 +274,20 @@ class Tron1WheeledRobot:
                 delta_yaw = delta_yaw_odom  # less drift
 
             # Use mid-point yaw for better arc approximation
-            mid_yaw = wrap_to_pi_format(self.odom_yaw + 0.5 * delta_yaw)
+            mid_odom_yaw = wrap_to_pi_format(self.odom_yaw + 0.5 * delta_yaw)
             self.odom_yaw = wrap_to_pi_format(self.odom_yaw + delta_yaw)
 
             # Forward displacement
             delta_s = (delta_phi[0] + delta_phi[1]) / 2.0 * self.wheel_radius
-            self.odom_x += delta_s * np.cos(mid_yaw)
-            self.odom_y += delta_s * np.sin(mid_yaw)
+
+            # Option 1: use imu_yaw for heading
+            mid_imu_yaw = wrap_to_pi_format(imu_yaw - 0.5 * delta_yaw_gyro)
+            self.odom_x += delta_s * np.cos(mid_imu_yaw)
+            self.odom_y += delta_s * np.sin(mid_imu_yaw)
+
+            # Option 2: use accumulated odom_yaw for heading
+            # self.odom_x += delta_s * np.cos(mid_odom_yaw)
+            # self.odom_y += delta_s * np.sin(mid_odom_yaw)
 
     def reset_odometry(self, x=0.0, y=0.0):
         with self._odom_lock:
