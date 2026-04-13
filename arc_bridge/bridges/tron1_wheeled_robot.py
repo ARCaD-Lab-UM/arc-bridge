@@ -163,11 +163,13 @@ class Tron1WheeledRobot:
         r_vecs_world *= self.wheel_radius  # scale to wheel radius
 
         # Per-wheel height and velocity estimates
+        p_contact_list = []  # contact points in yaw-aligned frame
         height_estimates = []  # yaw-aligned frame relative to on-the-ground world frame
         vel_estimates = []  # yaw-aligned frame relative to on-the-ground world frame
         for idx, wheel_idx in enumerate(self.wheel_indices):
             p_contact = p_wheel[idx] + r_vecs_world[idx]  # contact point position
-            # the torso was placed at the origin (world frame) so torso height = -contact_z
+            p_contact_list.append(p_contact)
+            # the torso was placed at the origin (pinocchio world frame) so torso height = -contact_z
             height_estimates.append(-p_contact[2])
 
             # wheel frame velocity (with v_torso=0) in LOCAL_WORLD_ALIGNED
@@ -184,21 +186,35 @@ class Tron1WheeledRobot:
         height_mean = float(np.mean(height_estimates))
         vel_mean_yaw_aligned = np.mean(vel_estimates, axis=0)
 
-        # Rotate back to real world frame
-        R_yaw = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, yaw]))
-        vel_world = R_yaw @ vel_mean_yaw_aligned
+        # Contact midpoint in yaw-aligned frame (torso at origin)
+        p_contacts = np.array(p_contact_list)  # (2, 3)
+        p_contacts_mid = np.mean(p_contacts, axis=0)  # (3,)
+        wheel_base_y = abs(p_contacts[0, 1] - p_contacts[1, 1])
+
+        # Torso offset relative to contact midpoint (in yaw-aligned frame). offset = -p_contacts_mid.
+        torso_offset_yaw_aligned = -p_contacts_mid[:2]
 
         # Update odometry
         wheel_angles = np.array([joint_pos[self.LEFT_WHEEL_JOINT_IDX], joint_pos[self.RIGHT_WHEEL_JOINT_IDX]])
-        p_contact = p_wheel + r_vecs_world  # (2, 3) in yaw-aligned frame
-        wheel_base_y = abs(p_contact[0, 1] - p_contact[1, 1])
         self._update_odometry(wheel_angles, yaw, wheel_base_y)
 
-        # x/y from odometry, z from FK
+        # Rotate back to real world frame
+        R_yaw = pin.rpy.rpyToMatrix(np.array([0.0, 0.0, self.odom_yaw]))  # can be either yaw or self.odom_yaw
+        vel_world = R_yaw @ vel_mean_yaw_aligned
+        torso_offset_world = R_yaw @ np.array([torso_offset_yaw_aligned[0], torso_offset_yaw_aligned[1], 0.0])
+        # cos_yaw = np.cos(yaw)
+        # sin_yaw = np.sin(yaw)
+        # torso_offset_world = np.array([
+        #     cos_yaw * torso_offset_yaw_aligned[0] - sin_yaw * torso_offset_yaw_aligned[1],
+        #     sin_yaw * torso_offset_yaw_aligned[0] + cos_yaw * torso_offset_yaw_aligned[1],
+        # ])
+
+        # Update return values
         pos_world = np.zeros(3, dtype=float)
         with self._odom_lock:
-            pos_world[0] = self.odom_x
-            pos_world[1] = self.odom_y
+            # x/y from odometry + offset, z from FK
+            pos_world[0] = self.odom_x + torso_offset_world[0]
+            pos_world[1] = self.odom_y + torso_offset_world[1]
         pos_world[2] = height_mean
 
         self.q_curr = q_curr
