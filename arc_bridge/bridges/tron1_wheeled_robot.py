@@ -276,6 +276,7 @@ class Tron1WheeledRobot:
             # Use mid-point yaw for better arc approximation
             mid_odom_yaw = wrap_to_pi_format(self.odom_yaw + 0.5 * delta_yaw)
             self.odom_yaw = wrap_to_pi_format(self.odom_yaw + delta_yaw)
+            # print(f"[DEBUG] imu_yaw={imu_yaw:.4f}  odom_yaw={self.odom_yaw:.4f}  diff={wrap_to_pi_format(imu_yaw - self.odom_yaw):.4f}  wheel_base_y={wheel_base_y:.3f}  delta_yaw_odom={delta_yaw_odom:.4f}  delta_yaw_gyro={delta_yaw_gyro:.4f}")
 
             # Forward displacement
             delta_s = (delta_phi[0] + delta_phi[1]) / 2.0 * self.wheel_radius

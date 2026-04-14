@@ -302,6 +302,9 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             self.low_state.quaternion[:] = self._rx_state_quaternion
             self.low_state.rpy[:] = self._rx_state_rpy
 
+        # Wrap angle to [-pi, pi]
+        self.low_state.rpy[2] = wrap_to_pi_format(self.low_state.rpy[2])
+
         # update the R torso global (based on vicon quaternion)
         self.R_torso_global_quat = quat_to_rot(Quaternion(*self.low_state.quaternion))
 
