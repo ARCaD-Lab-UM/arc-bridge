@@ -93,6 +93,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
 
         # Robot throttle print msg
         self._tron1_print_throttle = PrintThrottle(1.0)
+        self._prev_btn_lstick = False  # for rising-edge press detection
 
         # Override motor offsets (rad)
         self.joint_offsets = np.array([0, 0.53, -0.55-0.54, 0,  
@@ -119,7 +120,7 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
         # Process noise (px, py, pz, vx, vy, vz, ax, ay, az)
         self.KF_Q = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
         # Measurement noise (px, py, pz, vx, vy, vz, ax, ay, az)
-        self.KF_R = np.diag([0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01])
+        self.KF_R = np.diag([0.01, 0.01, 0.01, 100, 100, 100, 100, 100, 100])
         self.KF = Tron1WheeledFloatingBaseLinearStateEstimator(self.dt_estimator, self.KF_Q, self.KF_R, self.height_init)
         # heuristic measurement noise scaling based on vicon delay; R = (1 + alpha * dt) * R0 only on pos and vel
         self.vicon_delay_alpha = 20.0
@@ -285,8 +286,13 @@ class Tron1WheeledBridge(Lcm2MujocoBridge):
             # self.vis_vel_est = vel_now
             # self.vis_R_body = self.R_torso_global_rpy # R_body_to_world
 
+        # Gamepad lstick press (rising-edge) estimator reset
+        btn_lstick = getattr(self.gamepad_cmd, 'btn_lstick', False) if hasattr(self, 'gamepad_cmd') else False
+        reset_requested = btn_lstick and not self._prev_btn_lstick
+        self._prev_btn_lstick = btn_lstick
+
         # Handle reset request
-        if self.low_cmd.reset_se:
+        if self.low_cmd.reset_se or reset_requested:
             if self.pin_robot is not None:
                 self.pin_robot.reset_odometry()
             self.KF.reset()
