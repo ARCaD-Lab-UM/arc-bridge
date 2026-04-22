@@ -1,0 +1,22 @@
+package lcm_msgs;
+
+struct ufactory_lite6_state_t
+{
+    int64_t  timestamp;
+
+    const int32_t num_joint=6;
+
+    double   qj_pos[num_joint];
+    double   qj_vel[num_joint];
+    double   qj_tau[num_joint];
+
+    double   inertia_mat[num_joint][num_joint];
+    double   bias_force[num_joint];
+
+    // End-effector translational Jacobian: [qj_vel] -> [v_ee]
+    double   J_ee[3][num_joint];
+    double   dJdq_ee[3];
+
+    // End-effector position in world frame
+    double   p_ee[3];
+}

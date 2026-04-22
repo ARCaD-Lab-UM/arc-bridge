@@ -47,6 +47,7 @@ The ARC Bridge is a cross-platform software bridge of a nominal robot controller
 - [x] [LimX Tron1 Linefoot](https://github.com/ARCaD-Lab-UM/tron1-model-based-controller/blob/main/line_foot/MAIN_LF_LCM.m)
 - [x] [Toy Biped Linefoot](https://github.com/ARCaD-Lab-UM/TrainingWheel/blob/main/control_Cassie/MAIN_cassie_LCM.m)
 - [x] [Toy Biped Pointfoot](https://github.com/ARCaD-Lab-UM/TrainingWheel/blob/main/control_tron1/MAIN_tron1_LCM.m)
+- [x] UFACTORY Lite 6 (6-DOF arm)
 
 
 ## Add Your Custom Robot

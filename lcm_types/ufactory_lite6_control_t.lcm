@@ -1,0 +1,16 @@
+package lcm_msgs;
+
+struct ufactory_lite6_control_t
+{
+    int64_t  timestamp;
+
+    const int32_t num_joint=6;
+
+    double   qj_tau[num_joint];
+
+    double   qj_pos[num_joint];
+    double   qj_vel[num_joint];
+
+    double   kp[num_joint];
+    double   kd[num_joint];
+}

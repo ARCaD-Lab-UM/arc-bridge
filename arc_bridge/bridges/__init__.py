@@ -7,3 +7,4 @@ from .arm2link_bridge import Arm2linkBridge
 from .tron1_wheeled_bridge import Tron1WheeledBridge
 from .tron1_linefoot_bridge import Tron1LinefootBridge
 from .pendulum_bridge import PendulumBridge
+from .ufactory_lite6_bridge import UfactoryLite6Bridge

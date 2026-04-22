@@ -19,6 +19,7 @@ class Config:
         "pendulum":         "Pendulum/pendulum_scene.xml",
         "biped_pointfoot":  "BipedPointfoot/biped_pointfoot_scene.xml",
         "biped_linefoot":   "BipedLinefoot/biped_linefoot_scene.xml",
+        "ufactory_lite6":   "UfactoryLite6/xml/robot.xml",
         # "arm2link":         "Arm2Link/arm2link_sensing.xml",
     }
     valid_robot_types = list(robot_path_dict.keys())
