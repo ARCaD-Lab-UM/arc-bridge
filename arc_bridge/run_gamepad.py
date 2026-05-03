@@ -15,12 +15,12 @@ VX_LPF_TAU_SEC = 0.12
 WZ_LPF_TAU_SEC = 0.12
 
 VX_RATE_LIMIT_MAX_ACC = 3.0  # m/s^2 acceleration limit on command tracking; 3.5=aggressive
-VX_RATE_LIMIT_MIN_VEL = -1.0  # min m/s
-VX_RATE_LIMIT_MAX_VEL = 1.0  # max m/s
+VX_RATE_LIMIT_MIN_VEL = -10  # min m/s
+VX_RATE_LIMIT_MAX_VEL = 10  # max m/s
 
 WZ_RATE_LIMIT_MAX_ACC = 3.0 * np.pi / 2.0  # rad/s^2 acceleration limit on command tracking
-WZ_RATE_LIMIT_MIN_VEL = -np.pi / 2.0  # min rad/s
-WZ_RATE_LIMIT_MAX_VEL = np.pi / 2.0  # max rad/s
+WZ_RATE_LIMIT_MIN_VEL = -np.pi * 2.0  # min rad/s
+WZ_RATE_LIMIT_MAX_VEL = np.pi * 2.0  # max rad/s
 
 OVERRIDE_VX = 1.0
 OVERRIDE_WZ = 1.0
@@ -36,9 +36,9 @@ def main():
     parser = argparse.ArgumentParser(description="Standalone gamepad LCM publisher")
     parser.add_argument("--rate", type=float, default=1000.0, help="Publishing rate in Hz (default: 100)")
     parser.add_argument("--topic", type=str, default="gamepad_cmd", help="LCM topic name (default: gamepad_cmd)")
-    parser.add_argument("--vel-scale-x", type=float, default=1.0, help="Max forward/backward velocity scale (default: 0.8)")
+    parser.add_argument("--vel-scale-x", type=float, default=1.5, help="Max forward/backward velocity scale (default: 0.8)")
     parser.add_argument("--vel-scale-y", type=float, default=0.5, help="Max left/right velocity scale (default: 0.5)")
-    parser.add_argument("--vel-scale-rot", type=float, default=np.pi / 2.0, help="Max rotation velocity scale (default: pi/2)")
+    parser.add_argument("--vel-scale-rot", type=float, default=np.pi, help="Max rotation velocity scale (default: pi/2)")
     parser.add_argument("--scale-pitch", type=float, default=np.pi / 2.0, help="Pitch scale (default: pi/2)")
     parser.add_argument("--triggers-scale", type=float, default=1.0, help="Trigger axis scale (default: 1.0)")
     parser.add_argument("--ttl", type=int, default=None, help="Multicast time-to-live value (default: None, uses LCM default)")
