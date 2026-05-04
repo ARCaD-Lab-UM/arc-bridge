@@ -40,7 +40,7 @@
         <!-- <key name="0" qpos="0 0 0.70   1 0 0 0   0 0.4242 -0.9558 0   0 0.4581 -1.0328 0   0 -0.1  0.01   1 0 0 0" /> -->
 
         <!-- two legs parallel to retrieve object -->
-        <key name="0" qpos="0 0 0.70   1 0 0 0   0 0.4242 -0.9558 0   0 0.4581 -1.0328 0   0 -0.3  0.01   1 0 0 0" />
+        <key name="0" qpos="0 0 0.70   1 0 0 0   0 0.4242 -0.9558 0   0 0.4581 -1.0328 0   0 -0.2  0.01   1 0 0 0" />
         <key name="1" qpos="0 0 0.6   1 0 0 0   0.5236 0.5236 -1.0472 0   -0.54 0.55 -1.1 0    0 -0.4  0.01   1 0 0 0" />
         
         <!-- one leg forward to retrieve object -->
@@ -145,10 +145,10 @@
     
     <!-- small object for retrieving -->
     <body>
-      <inertial pos="0 0 0" quat="1 0 0 0" mass="0.7" diaginertia="0.0037 0.0037 0.0037" />
+      <inertial pos="0 0 0" quat="1 0 0 0" mass="1.0" diaginertia="0.0037 0.0037 0.0037" />
       <joint type="free" limited="false" damping="0.0000" stiffness="0.0000" armature="0"/>
-      <geom class="visual" name="object" type="box" size="0.2 0.2 0.01" pos="0 0 0" quat="1 0 0 0"/>
-      <geom name="object_collision" type="box" size="0.2 0.2 0.01" pos="0 0 0" quat="1 0 0 0" friction="0.5 0.005 0.0001"/>
+      <geom class="visual" name="object" type="box" size="0.3 0.3 0.01" pos="0 0 0" quat="1 0 0 0"/>
+      <geom name="object_collision" type="box" size="0.3 0.3 0.01" pos="0 0 0" quat="1 0 0 0" friction="0.5 0.005 0.0001"/>
     </body>
 
     <!-- big object for scooting  -->

@@ -65,6 +65,7 @@ def main():
     parser.add_argument("--lcm_cmd_online_jitter_time_ms", type=float, default=10.0, help="LCM command watchdog; just online wait time (unstable time); wait time after offline to consider online (ms)")
     parser.add_argument("--lcm_cmd_offline_time_ms", type=float, default=200.0, help="LCM command watchdog; offline timeout; time to consider offline if no update received (ms)")
     parser.add_argument("--disable_daemon", action="store_true", help="flag to disable the watchdog")
+    parser.add_argument("--object_mass", type=float, default=None, help="mass of the object body in robot_object.xml (default: use value from XML)")
     args = parser.parse_args()
 
     # Select robot type
@@ -86,6 +87,16 @@ def main():
     # Initialize Mujoco
     mj_model = mujoco.MjModel.from_xml_path(robot_config.robot_xml_path)
     mj_data = mujoco.MjData(mj_model)
+
+    # Override object body mass if specified
+    if args.object_mass is not None:
+        geom_id = mujoco.mj_name2id(mj_model, mujoco.mjtObj.mjOBJ_GEOM, "object")
+        if geom_id >= 0:
+            body_id = mj_model.geom_bodyid[geom_id]
+            mj_model.body_mass[body_id] = args.object_mass
+            print(f"=> object body mass set to {args.object_mass} kg")
+        else:
+            print("=> Warning: geom 'object' not found; --object_mass ignored")
 
     # Modify MjOption
     mj_model.opt.timestep = Config.dt_sim
