@@ -5,7 +5,10 @@ import argparse
 import numpy as np
 
 from arc_bridge.utils import Gamepad, FirstOrderLowPassTD
-from arc_bridge.lcm_msgs import gamepad_cmd_t
+from arc_bridge.lcm_msgs import gamepad_cmd_t, tron1_wheeled_state_t
+
+
+STATE_TOPIC = "TRON1_WHEELED_STATE".lower()
 
 
 VX_FILTER_MODE = "vx_rate_limit"  # "vx_lowpass" "vx_rate_limit" "raw"
@@ -17,48 +20,22 @@ WZ_LPF_TAU_SEC = 0.12
 VX_RATE_LIMIT_MAX_ACC = 3.0  # m/s^2 acceleration limit on command tracking; 3.5=aggressive
 VX_RATE_LIMIT_MIN_VEL = -10  # min m/s
 VX_RATE_LIMIT_MAX_VEL = 10  # max m/s
+VX_RATE_LIMIT_EPSILON = 0.001  # m/s deadband; |vx_raw - vx_rate_limited| below this freezes; -1 to disable
 
 WZ_RATE_LIMIT_MAX_ACC = 3.0 * np.pi / 2.0  # rad/s^2 acceleration limit on command tracking
 WZ_RATE_LIMIT_MIN_VEL = -np.pi * 2.0  # min rad/s
 WZ_RATE_LIMIT_MAX_VEL = np.pi * 2.0  # max rad/s
+WZ_RATE_LIMIT_EPSILON = 0.001  # rad/s deadband; |wz_raw - wz_rate_limited| below this freezes; -1 to disable
 
-OVERRIDE_VX = 1.0
-OVERRIDE_WZ = 1.0
+# For different modes
+VX_SCALE_SPIN = 0.5
+ROT_SCALE_SPIN = 1.5 * np.pi
 
-SLALOM_VX_FWD = 0.8
-SLALOM_VX_CURVE = 2.0
-SLALOM_WZ = 1.0
-SLALOM_STRAIGHT_DURATION = 0.0  # seconds going straight before each curve
-SLALOM_CURVE_OUT_DURATION = 0.75 #0.75 #1.25  # seconds turning out (toward obstacle side)
-SLALOM_CURVE_BACK_DURATION = 0.85 #1.25 #1.75  # seconds turning back (heading -> 0)
-SLALOM_NUM_OBSTACLES = 3
+VX_SCALE_FAST = 3.0
+ROT_SCALE_FAST = 0.5
 
-
-def toggle_override_mode(btn_down, prev_btn_down, override_mode):
-    if btn_down and not prev_btn_down:
-        override_mode = not override_mode
-        print(f"=> Override mode: {'ON' if override_mode else 'OFF'}")
-    return override_mode
-
-
-def slalom_command(elapsed):
-    """Return (vx, wz, done) at elapsed seconds into the slalom maneuver.
-
-    Each obstacle: straight, then turn out for SLALOM_CURVE_OUT_DURATION,
-    then turn back for SLALOM_CURVE_BACK_DURATION. Direction alternates per
-    obstacle. Tune the two curve durations independently to balance drift.
-    """
-    period = SLALOM_STRAIGHT_DURATION + SLALOM_CURVE_OUT_DURATION + SLALOM_CURVE_BACK_DURATION
-    obstacle_idx = int(elapsed // period)
-    if obstacle_idx >= SLALOM_NUM_OBSTACLES:
-        return 0.0, 0.0, True
-    phase_t = elapsed - obstacle_idx * period
-    if phase_t < SLALOM_STRAIGHT_DURATION:
-        return SLALOM_VX_FWD, 0.0, False
-    curve_t = phase_t - SLALOM_STRAIGHT_DURATION
-    direction = -1.0 if (obstacle_idx % 2) else 1.0
-    sign = 1.0 if curve_t < SLALOM_CURVE_OUT_DURATION else -1.0
-    return SLALOM_VX_CURVE, SLALOM_WZ * direction * sign, False
+VX_SCALE_NORMAL = 2.0
+ROT_SCALE_NORMAL = 1.0
 
 
 def main():
@@ -81,6 +58,15 @@ def main():
         udp_multicast_group = None
         lc = lcm.LCM()
 
+    # Robot state subscriber (yaw used for spin-mode vx projection)
+    robot_state = {"yaw": 0.0, "available": False}
+
+    def state_handler(channel, data):
+        msg = tron1_wheeled_state_t.decode(data)
+        robot_state["yaw"] = float(msg.rpy[2])
+        robot_state["available"] = True
+
+    lc.subscribe(STATE_TOPIC, state_handler)
 
     # Initialize gamepad
     try:
@@ -111,15 +97,13 @@ def main():
     wz_lpf = FirstOrderLowPassTD(tau_sec=WZ_LPF_TAU_SEC, frame_dt=dt, dim=1, init=[0.0])
     vx_rate_limited = 0.0
     wz_rate_limited = 0.0
-    override_mode = False
-    prev_btn_down = False
-    slalom_active = False
-    slalom_start = 0.0
-    prev_btn_up = False
+    prev_mode = None
+    yaw_entry = 0.0  # robot yaw captured at the moment spin mode is entered
     print(f"=> LCM URL: {udp_multicast_group or 'default'}")
     print(f"=> Publishing gamepad commands on '{args.topic}' at {args.rate} Hz")
 
     while is_running:
+        lc.handle_timeout(0)  # get latest robot state; non-blocking with 0 timeout
         cmd = gamepad.get_command()
         pitch = gamepad.get_pitch()
         params = gamepad.get_params()
@@ -130,28 +114,27 @@ def main():
         vx_raw = cmd[0]
         wz_raw = cmd[2]
 
-        override_mode = toggle_override_mode(buttons[2], prev_btn_down, override_mode)
-        prev_btn_down = buttons[2]
-        if override_mode:
-            vx_raw = OVERRIDE_VX
-            wz_raw = OVERRIDE_WZ
-
-        if buttons[0] and not prev_btn_up:
-            slalom_active = not slalom_active
-            if slalom_active:
-                slalom_start = time.time()
-            print(f"=> Slalom mode: {'ON' if slalom_active else 'OFF'}")
-        prev_btn_up = buttons[0]
-        if slalom_active:
-            vx_s, wz_s, done = slalom_command(time.time() - slalom_start)
-            if done:
-                slalom_active = False
-                print("=> Slalom mode: completed")
+        if lbrb[0]:
+            mode = "spin"
+        elif lbrb[1]:
+            mode = "fast"
+        else:
+            mode = "normal"
+        if mode != prev_mode:
+            if mode == "spin":
+                yaw_entry = robot_state["yaw"]
+                gamepad.set_vel_scale_x(VX_SCALE_SPIN)
+                gamepad.set_vel_scale_rot(ROT_SCALE_SPIN)
+            elif mode == "fast":
+                gamepad.set_vel_scale_x(VX_SCALE_FAST)
+                gamepad.set_vel_scale_rot(ROT_SCALE_FAST)
             else:
-                vx_raw = vx_s
-                wz_raw = wz_s
+                gamepad.set_vel_scale_x(VX_SCALE_NORMAL)
+                gamepad.set_vel_scale_rot(ROT_SCALE_NORMAL)
+            prev_mode = mode
 
         if cmd[3]:
+            # e-stop pressed
             vx_filtered = 0.0
             wz_filtered = 0.0
             vx_lpf.reset([0.0])
@@ -161,7 +144,9 @@ def main():
         elif VX_FILTER_MODE == "vx_lowpass":
             vx_filtered = float(vx_lpf.update(vx_raw, dt=dt)[0])
         elif VX_FILTER_MODE == "vx_rate_limit":
-            vx_rate_limited += float(np.sign(vx_raw - vx_rate_limited) * VX_RATE_LIMIT_MAX_ACC * dt)
+            vx_diff = vx_raw - vx_rate_limited
+            vx_sign = 0.0 if abs(vx_diff) < VX_RATE_LIMIT_EPSILON else np.sign(vx_diff)
+            vx_rate_limited += float(vx_sign * VX_RATE_LIMIT_MAX_ACC * dt)
             vx_rate_limited = float(np.clip(vx_rate_limited, VX_RATE_LIMIT_MIN_VEL, VX_RATE_LIMIT_MAX_VEL))
             vx_filtered = vx_rate_limited
         else:
@@ -172,14 +157,22 @@ def main():
         elif WZ_FILTER_MODE == "wz_lowpass":
             wz_filtered = float(wz_lpf.update(wz_raw, dt=dt)[0])
         elif WZ_FILTER_MODE == "wz_rate_limit":
-            wz_rate_limited += float(np.sign(wz_raw - wz_rate_limited) * WZ_RATE_LIMIT_MAX_ACC * dt)
+            wz_diff = wz_raw - wz_rate_limited
+            wz_sign = 0.0 if abs(wz_diff) < WZ_RATE_LIMIT_EPSILON else np.sign(wz_diff)
+            wz_rate_limited += float(wz_sign * WZ_RATE_LIMIT_MAX_ACC * dt)
             wz_rate_limited = float(np.clip(wz_rate_limited, WZ_RATE_LIMIT_MIN_VEL, WZ_RATE_LIMIT_MAX_VEL))
             wz_filtered = wz_rate_limited
         else:
             wz_filtered = wz_raw
 
+        # In spin mode, vx_filtered is project onto the current body-x direction
+        if mode == "spin":
+            vx_out = vx_filtered * float(np.cos(robot_state["yaw"] - yaw_entry))
+        else:
+            vx_out = vx_filtered
+
         gamepad_cmd.timestamp = time.time_ns()
-        gamepad_cmd.vx = vx_filtered
+        gamepad_cmd.vx = vx_out
         gamepad_cmd.vy = cmd[1]
         gamepad_cmd.wz = wz_filtered
         gamepad_cmd.e_stop = cmd[3]
