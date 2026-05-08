@@ -257,6 +257,30 @@ class Gamepad:
         """
         return self.lt, self.rt
 
+    def set_vel_scale_x(self, value: float) -> None:
+        new_scale = float(value)
+        if self._vel_scale_x != 0.0:
+            self.vx *= new_scale / self._vel_scale_x
+        self._vel_scale_x = new_scale
+
+    def set_vel_scale_y(self, value: float) -> None:
+        new_scale = float(value)
+        if self._vel_scale_y != 0.0:
+            self.vy *= new_scale / self._vel_scale_y
+        self._vel_scale_y = new_scale
+
+    def set_vel_scale_rot(self, value: float) -> None:
+        new_scale = float(value)
+        if self._vel_scale_rot != 0.0:
+            self.wz *= new_scale / self._vel_scale_rot
+        self._vel_scale_rot = new_scale
+
+    def set_scale_pitch(self, value: float) -> None:
+        new_scale = float(value)
+        if self._scale_pitch != 0.0:
+            self.pitch *= new_scale / self._scale_pitch
+        self._scale_pitch = new_scale
+
     def _scale_trigger_value(self, raw_value: int) -> float:
         profile = self._profile
         clamped = max(0, min(profile.trigger_max, raw_value))
