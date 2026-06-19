@@ -4,7 +4,7 @@ channels:
   - conda-forge
 dependencies:
   - python = 3.10
-  - pinocchio = 3.8.0
+  - pinocchio = 3.8.0   # pulls in conda casadi 3.7.2, but missing solvers (see pip install override below)
   - scipy = 1.15.3
   - websocket-client = 1.8.0
   - numpy = 2.0.1
@@ -12,7 +12,9 @@ dependencies:
   - pip = 25.2
   - pip:
     - inputs == 0.5
-    - lcm == 1.5.1
     - mujoco == 3.3.7
-    - casadi == 3.7.0
+    - lcm == 1.5.1
+    - casadi == 3.7.2
+    # for the full solver set (qpOASES/Sundials/CSparse), after `conda env create ...` run:
+    # pip install --ignore-installed --no-deps casadi==3.7.2
     - evdev == 1.9.2 ; sys_platform == "linux"
