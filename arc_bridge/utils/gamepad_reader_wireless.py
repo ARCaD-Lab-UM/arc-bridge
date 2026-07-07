@@ -66,7 +66,7 @@ class Gamepad:
         self._lj_pressed = False
         self._rj_pressed = False
 
-        self.vx, self.vy, self.wz = 0.0, 0.0, 0.0
+        self.axis = [0.0, 0.0, 0.0, 0.0]  # [L West, L North, R West, R North] for positive directions
         self._estop_flagged = False
         self.is_running = True
 
@@ -117,15 +117,15 @@ class Gamepad:
             elif event.code == ecodes.BTN_THUMBR:
                 self._rj_pressed = bool(event.value)
         elif event.type == ecodes.EV_ABS:
-            if event.code == ecodes.ABS_X:
+            if event.code == ecodes.ABS_X:      # left stick X -> axis[0] L West
                 centered = _center_axis(event.value)
-                self.vy = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_y)
-            elif event.code == ecodes.ABS_Y:
+                self.axis[0] = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_y)
+            elif event.code == ecodes.ABS_Y:    # left stick Y -> axis[1] L North
                 centered = _center_axis(event.value)
-                self.vx = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
-            elif event.code in (ecodes.ABS_RX, ecodes.ABS_Z):
+                self.axis[1] = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
+            elif event.code in (ecodes.ABS_RX, ecodes.ABS_Z):  # right stick X -> axis[2] R West
                 centered = _center_axis(event.value)
-                self.wz = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
+                self.axis[2] = _interpolate(-centered, DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
 
         if self._estop_flagged and self._lj_pressed:
             self._estop_flagged = False
@@ -135,10 +135,14 @@ class Gamepad:
             if not self._estop_flagged:
                 print("EStop Flagged, press LEFT joystick to release.")
             self._estop_flagged = True
-            self.vx = self.vy = self.wz = 0.0
+            self.axis = [0.0, 0.0, 0.0, 0.0]
 
-    def get_command(self):
-        return [self.vx, self.vy, self.wz, self._estop_flagged]
+    def get_axis(self):
+        # [L West, L North, R West, R North] for positive directions
+        return list(self.axis)
+
+    def get_estop(self):
+        return self._estop_flagged
 
     def fake_event(self, event_type: int, code: int, value: int) -> None:
         """Manually feed a synthetic event for testing."""
@@ -164,8 +168,8 @@ if __name__ == "__main__":
     gamepad = Gamepad()
     while True:
         print(
-            "Vx: {:.3f}, Vy: {:.3f}, Wz: {:.3f}, Estop: {}".format(
-                gamepad.vx, gamepad.vy, gamepad.wz, gamepad._estop_flagged
+            "Axis [LW, LN, RW, RN]: [{:.3f}, {:.3f}, {:.3f}, {:.3f}], Estop: {}".format(
+                *gamepad.get_axis(), gamepad._estop_flagged
             )
         )
         time.sleep(0.1)

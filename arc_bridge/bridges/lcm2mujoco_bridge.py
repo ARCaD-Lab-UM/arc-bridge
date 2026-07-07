@@ -271,8 +271,7 @@ class Lcm2MujocoBridge:
         if self.gamepad is None:
             return
 
-        cmd = self.gamepad.get_command()
-        pitch = self.gamepad.get_pitch()
+        axis = self.gamepad.get_axis()
         params = self.gamepad.get_params()
         buttons = self.gamepad.get_buttons()
         lbrb = self.gamepad.get_lbrb()
@@ -280,11 +279,8 @@ class Lcm2MujocoBridge:
         lt, rt = self.gamepad.get_triggers()
 
         self.gamepad_cmd.timestamp = time.time_ns()
-        self.gamepad_cmd.vx = cmd[0]
-        self.gamepad_cmd.vy = cmd[1]
-        self.gamepad_cmd.wz = cmd[2]
-        self.gamepad_cmd.e_stop = cmd[3]
-        self.gamepad_cmd.pitch = pitch
+        self.gamepad_cmd.axis[:] = axis  # [L West, L North, R West, R North] for positive directions
+        self.gamepad_cmd.e_stop = self.gamepad.get_estop()
         self.gamepad_cmd.params[:] = params[:]
         self.gamepad_cmd.btn_up = buttons[0]
         self.gamepad_cmd.btn_left = buttons[1]

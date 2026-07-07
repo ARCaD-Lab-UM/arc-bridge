@@ -58,8 +58,7 @@ def main():
     print(f"=> Publishing gamepad commands on '{args.topic}' at {args.rate} Hz")
 
     while is_running:
-        cmd = gamepad.get_command()
-        pitch = gamepad.get_pitch()
+        axis = gamepad.get_axis()
         params = gamepad.get_params()
         buttons = gamepad.get_buttons()
         lbrb = gamepad.get_lbrb()
@@ -67,11 +66,8 @@ def main():
         lt, rt = gamepad.get_triggers()
 
         gamepad_cmd.timestamp = time.time_ns()
-        gamepad_cmd.vx = cmd[0]
-        gamepad_cmd.vy = cmd[1]
-        gamepad_cmd.wz = cmd[2]
-        gamepad_cmd.e_stop = cmd[3]
-        gamepad_cmd.pitch = pitch
+        gamepad_cmd.axis[:] = axis  # [L West, L North, R West, R North] for positive directions
+        gamepad_cmd.e_stop = gamepad.get_estop()
         gamepad_cmd.params[:] = params[:]
         gamepad_cmd.btn_up = buttons[0]
         gamepad_cmd.btn_left = buttons[1]

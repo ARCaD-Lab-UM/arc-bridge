@@ -4,12 +4,9 @@ struct gamepad_cmd_t
 {
     int64_t  timestamp;
 
-    double   vx;
-    double   vy;
-    double   wz;
     boolean  e_stop;
 
-    double   pitch;
+    double   axis[4]; // +[0]=L West, +[1]=L North, +[2]=R West, +[3]=R North
 
     int8_t   params[2]; // D-Pad values
 

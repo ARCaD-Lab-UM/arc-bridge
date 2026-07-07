@@ -64,11 +64,10 @@ class Gamepad:
         # self._mode = Parameters.control_mode
 
         # Controller states
-        self.vx, self.vy, self.wz = 0.0, 0.0, 0.0
+        self.axis = [0.0, 0.0, 0.0, 0.0]  # [L West, L North, R West, R North] for positive directions
         self._estop_flagged = False
         self.is_running = True
 
-        self.pitch = 0.0
         self.params = [0, 0]
         self.buttons = [False, False, False, False]
         self.lbrb = [False, False]
@@ -130,16 +129,18 @@ class Gamepad:
             self.buttons[3] = bool(event.state)
 
         elif event.ev_type == "Absolute" and event.code == "ABS_X":
-            # Left Joystick L/R axis
-            self.vy = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_y)
+            # Left Joystick L/R axis -> axis[0] L West
+            self.axis[0] = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_y)
         elif event.ev_type == "Absolute" and event.code == "ABS_Y":
-            # Left Joystick F/B axis; need to flip sign for consistency
-            self.vx = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
+            # Left Joystick F/B axis -> axis[1] L North; need to flip sign for consistency
+            self.axis[1] = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_x)
         elif event.ev_type == "Absolute" and event.code == "ABS_RX":
-            self.wz = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
+            # Right Joystick L/R axis -> axis[2] R West
+            self.axis[2] = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._vel_scale_rot)
 
         elif event.ev_type == "Absolute" and event.code == "ABS_RY":
-            self.pitch = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
+            # Right Joystick F/B axis -> axis[3] R North
+            self.axis[3] = _interpolate(-event.state, JOYSTICK_DEAD_ZONE, MAX_ABS_VAL, self._scale_pitch)
 
         elif event.ev_type == "Absolute" and event.code == "ABS_Z":
             self.lt = self._scale_trigger_value(event.state)
@@ -169,14 +170,15 @@ class Gamepad:
             if not self._estop_flagged:
                 print("EStop Flagged, press LEFT joystick to release.")
             self._estop_flagged = True
-            self.vx, self.vy, self.wz = 0.0, 0.0, 0.0
+            self.axis = [0.0, 0.0, 0.0, 0.0]
             self.params = [0, 0]
 
-    def get_command(self):
-        return [self.vx, self.vy, self.wz, self._estop_flagged]
+    def get_axis(self):
+        # [L West, L North, R West, R North] for positive directions
+        return list(self.axis)
 
-    def get_pitch(self):
-        return self.pitch
+    def get_estop(self):
+        return self._estop_flagged
 
     def get_params(self):
         return list(self.params)
@@ -196,25 +198,25 @@ class Gamepad:
     def set_vel_scale_x(self, value: float) -> None:
         new_scale = float(value)
         if self._vel_scale_x != 0.0:
-            self.vx *= new_scale / self._vel_scale_x
+            self.axis[1] *= new_scale / self._vel_scale_x
         self._vel_scale_x = new_scale
 
     def set_vel_scale_y(self, value: float) -> None:
         new_scale = float(value)
         if self._vel_scale_y != 0.0:
-            self.vy *= new_scale / self._vel_scale_y
+            self.axis[0] *= new_scale / self._vel_scale_y
         self._vel_scale_y = new_scale
 
     def set_vel_scale_rot(self, value: float) -> None:
         new_scale = float(value)
         if self._vel_scale_rot != 0.0:
-            self.wz *= new_scale / self._vel_scale_rot
+            self.axis[2] *= new_scale / self._vel_scale_rot
         self._vel_scale_rot = new_scale
 
     def set_scale_pitch(self, value: float) -> None:
         new_scale = float(value)
         if self._scale_pitch != 0.0:
-            self.pitch *= new_scale / self._scale_pitch
+            self.axis[3] *= new_scale / self._scale_pitch
         self._scale_pitch = new_scale
 
     def fake_event(self, ev_type, code, value):
@@ -240,11 +242,10 @@ if __name__ == "__main__":
     gamepad = Gamepad(vel_scale_x=2.0, vel_scale_y=0.5, vel_scale_rot=3.141592654, scale_pitch=1.570796327, triggers_scale=1.0)
     while True:
         print(
-            "Vx: {:.3f}, Vy: {:.3f}, Wz: {:.3f}, Estop: {}".format(
-                gamepad.vx, gamepad.vy, gamepad.wz, gamepad._estop_flagged
+            "Axis [LW, LN, RW, RN]: [{:.3f}, {:.3f}, {:.3f}, {:.3f}], Estop: {}".format(
+                *gamepad.get_axis(), gamepad._estop_flagged
             )
         )
-        print("Pitch: {:.3f}".format(gamepad.get_pitch()))
         print("Params:", gamepad.get_params())
         print("Buttons (Y,X,A,B):", gamepad.get_buttons())
         print("LB/RB:", gamepad.get_lbrb(), "LJ/RJ:", gamepad.get_ljrj())
