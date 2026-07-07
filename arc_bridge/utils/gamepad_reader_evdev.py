@@ -160,7 +160,7 @@ class Gamepad:
             self._estop_flagged = False
             print("Estop Released.")
 
-        if self._lb_pressed and self._rb_pressed:
+        if self._rj_pressed and self._lb_pressed and self._rb_pressed:
             if not self._estop_flagged:
                 print("EStop Flagged, press LEFT joystick to release.")
             self._estop_flagged = True

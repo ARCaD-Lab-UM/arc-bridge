@@ -64,6 +64,7 @@ class Gamepad:
         self._lb_pressed = False
         self._rb_pressed = False
         self._lj_pressed = False
+        self._rj_pressed = False
 
         self.vx, self.vy, self.wz = 0.0, 0.0, 0.0
         self._estop_flagged = False
@@ -113,6 +114,8 @@ class Gamepad:
                 self._rb_pressed = bool(event.value)
             elif event.code == ecodes.BTN_THUMBL:
                 self._lj_pressed = bool(event.value)
+            elif event.code == ecodes.BTN_THUMBR:
+                self._rj_pressed = bool(event.value)
         elif event.type == ecodes.EV_ABS:
             if event.code == ecodes.ABS_X:
                 centered = _center_axis(event.value)
@@ -128,7 +131,7 @@ class Gamepad:
             self._estop_flagged = False
             print("Estop Released.")
 
-        if self._lb_pressed and self._rb_pressed:
+        if self._rj_pressed and self._lb_pressed and self._rb_pressed:
             if not self._estop_flagged:
                 print("EStop Flagged, press LEFT joystick to release.")
             self._estop_flagged = True
