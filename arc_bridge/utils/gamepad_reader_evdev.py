@@ -190,16 +190,16 @@ class Gamepad:
 
     def _handle_axis_event(self, event: evdev.events.InputEvent) -> None:
         profile = self._profile
-        if event.code == profile.axis_vy:       # left stick X -> axis[0] L West
+        if event.code == profile.axis_lx:       # left stick X -> axis[0] L West
             centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
             self.axis[0] = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_y)
-        elif event.code == profile.axis_vx:     # left stick Y -> axis[1] L North
+        elif event.code == profile.axis_ly:     # left stick Y -> axis[1] L North
             centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
             self.axis[1] = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_x)
-        elif event.code == profile.axis_wz:     # right stick X -> axis[2] R West
+        elif event.code == profile.axis_rx:     # right stick X -> axis[2] R West
             centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
             self.axis[2] = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._vel_scale_rot)
-        elif event.code == profile.axis_pitch:  # right stick Y -> axis[3] R North
+        elif event.code == profile.axis_ry:     # right stick Y -> axis[3] R North
             centered = _center_axis(event.value, profile.needs_recentering, profile.max_abs_val)
             self.axis[3] = _interpolate(-centered, profile.joystick_dead_zone, profile.max_abs_val, self._scale_pitch)
         elif event.code == profile.axis_lt:

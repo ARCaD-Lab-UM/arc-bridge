@@ -10,10 +10,10 @@ class DeviceProfile:
     names: tuple[str, ...]
 
     # channel mappings
-    axis_vx: int
-    axis_vy: int
-    axis_wz: int
-    axis_pitch: int
+    axis_ly: int
+    axis_lx: int
+    axis_rx: int
+    axis_ry: int
     axis_lt: int
     axis_rt: int
     axis_params_vertical: int
@@ -44,10 +44,10 @@ class DeviceProfile:
 DEVICE_PROFILES: tuple[DeviceProfile, ...] = (
     DeviceProfile(
         names=("Microsoft X-Box One S pad", "Microsoft Xbox Series S|X Controller",),
-        axis_vx=ecodes.ABS_Y,
-        axis_vy=ecodes.ABS_X,
-        axis_wz=ecodes.ABS_RX,
-        axis_pitch=ecodes.ABS_RY,
+        axis_ly=ecodes.ABS_Y,
+        axis_lx=ecodes.ABS_X,
+        axis_rx=ecodes.ABS_RX,
+        axis_ry=ecodes.ABS_RY,
         axis_lt=ecodes.ABS_Z,
         axis_rt=ecodes.ABS_RZ,
         axis_params_vertical=ecodes.ABS_HAT0Y,
@@ -68,10 +68,10 @@ DEVICE_PROFILES: tuple[DeviceProfile, ...] = (
     ),
     DeviceProfile(
         names=("Xbox Wireless Controller",),
-        axis_vx=ecodes.ABS_Y,
-        axis_vy=ecodes.ABS_X,
-        axis_wz=ecodes.ABS_Z,
-        axis_pitch=ecodes.ABS_RZ,
+        axis_ly=ecodes.ABS_Y,
+        axis_lx=ecodes.ABS_X,
+        axis_rx=ecodes.ABS_Z,
+        axis_ry=ecodes.ABS_RZ,
         axis_lt=ecodes.ABS_BRAKE,
         axis_rt=ecodes.ABS_GAS,
         axis_params_vertical=ecodes.ABS_HAT0Y,
@@ -92,10 +92,10 @@ DEVICE_PROFILES: tuple[DeviceProfile, ...] = (
     ),
     DeviceProfile(
         names=("Logitech Gamepad F710",),
-        axis_vx=ecodes.ABS_Y,
-        axis_vy=ecodes.ABS_X,
-        axis_wz=ecodes.ABS_RX,
-        axis_pitch=ecodes.ABS_RY,
+        axis_ly=ecodes.ABS_Y,
+        axis_lx=ecodes.ABS_X,
+        axis_rx=ecodes.ABS_RX,
+        axis_ry=ecodes.ABS_RY,
         axis_lt=ecodes.ABS_Z,
         axis_rt=ecodes.ABS_RZ,
         axis_params_vertical=ecodes.ABS_HAT0Y,
@@ -116,10 +116,10 @@ DEVICE_PROFILES: tuple[DeviceProfile, ...] = (
     ),
     DeviceProfile(
         names=("Logitech Logitech Cordless RumblePad 2",), # no axis, do not use
-        axis_vx=ecodes.ABS_Y,
-        axis_vy=ecodes.ABS_X,
-        axis_wz=ecodes.ABS_Z,
-        axis_pitch=ecodes.ABS_RZ,
+        axis_ly=ecodes.ABS_Y,
+        axis_lx=ecodes.ABS_X,
+        axis_rx=ecodes.ABS_Z,
+        axis_ry=ecodes.ABS_RZ,
         axis_lt=ecodes.BTN_TL,
         axis_rt=ecodes.BTN_TR,
         axis_params_vertical=ecodes.ABS_HAT0Y,
@@ -143,10 +143,10 @@ DEVICE_PROFILES: tuple[DeviceProfile, ...] = (
 
 DEFAULT_PROFILE = DeviceProfile(
     names=tuple(),
-    axis_vx=ecodes.ABS_Y,
-    axis_vy=ecodes.ABS_X,
-    axis_wz=ecodes.ABS_RX,
-    axis_pitch=ecodes.ABS_RY,
+    axis_ly=ecodes.ABS_Y,
+    axis_lx=ecodes.ABS_X,
+    axis_rx=ecodes.ABS_RX,
+    axis_ry=ecodes.ABS_RY,
     axis_lt=ecodes.ABS_Z,
     axis_rt=ecodes.ABS_RZ,
     axis_params_vertical=ecodes.ABS_HAT0Y,
