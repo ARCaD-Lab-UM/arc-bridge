@@ -35,6 +35,30 @@ class UfactoryLite6Bridge(Lcm2MujocoBridge):
         self.low_state.dJdq_ee = dJdq_ee.tolist()
         self.low_state.p_ee = ee_pos.tolist()
 
+    def update_motor_cmd(self):
+        # Self-contained feed-forward qfrc_bias compensation: MuJoCo's generalized bias force (gravity + Coriolis/centrifugal, i.e. inverse dynamics at qacc=0).
+        bias = np.asarray(self.mj_data.qfrc_bias)
+        lo = self.mj_model.actuator_ctrlrange[:, 0]
+        hi = self.mj_model.actuator_ctrlrange[:, 1]
+
+        if self._lcm_cmd_daemon is not None:
+            self._lcm_cmd_daemon.update()
+            self._print_lcm_cmd_daemon()
+            if self._lcm_cmd_daemon.is_error():
+                # pure bias force comp if no live external command
+                self.mj_data.ctrl[:] = np.clip(bias, lo, hi)
+                return
+
+        cmd = self._compute_delayed_low_cmd()
+        kp = np.asarray(cmd.kp)
+        kd = np.asarray(cmd.kd)
+        # bias force comp added on top of any external PD/torque command
+        tau = (np.asarray(cmd.qj_tau)
+               + kp * (np.asarray(cmd.qj_pos) - np.asarray(self.low_state.qj_pos))
+               + kd * (np.asarray(cmd.qj_vel) - np.asarray(self.low_state.qj_vel))
+               + bias)
+        self.mj_data.ctrl[:] = np.clip(tau, lo, hi)
+
     def lcm_state_handler(self, channel, data):
         if self.mj_data is None:
             return
