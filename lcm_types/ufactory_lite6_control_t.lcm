@@ -6,6 +6,13 @@ struct ufactory_lite6_control_t
 
     const int32_t num_joint=6;
 
+    // Control mode: 0 = position/servo (target = qj_pos), 1 = joint velocity/jog (target = qj_vel)
+    int8_t   mode;
+
+    // Trajectory shaping limits. Scalars.
+    double   speed;   // max joint speed (rad/s); <=0 means: no limit / track target directly in servo mode
+    double   mvacc;   // max joint acceleration (rad/s^2)
+
     double   qj_tau[num_joint];
 
     double   qj_pos[num_joint];
