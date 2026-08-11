@@ -23,6 +23,9 @@
       <default class="collision">
         <geom group="3" mass="0" density="0"/>
       </default>
+      <default class="frame_axis">
+        <geom type="cylinder" contype="0" conaffinity="0" mass="0" density="0" group="1"/>
+      </default>
       <site size="0.001" rgba="0.5 0.5 0.5 0.3" group="4"/>
     </default>
   </default>
@@ -52,6 +55,11 @@
       <inertial pos="-0.00829545 3.26357e-05 0.0631195" mass="1.65394" diaginertia="0 0 0"/>
       <geom class="visual" mesh="link_base"/>
       <geom name="link_base_c" class="collision" mesh="link_base_c"/>
+      <!-- Display base frame -->
+      <geom name="base_frame_o" class="frame_axis" type="sphere" size="0.012" rgba="0.9 0.9 0.9 1"/>
+      <geom name="base_frame_x" class="frame_axis" fromto="0 0 0  0.16 0 0" size="0.008" rgba="1 0 0 1"/>
+      <geom name="base_frame_y" class="frame_axis" fromto="0 0 0  0 0.16 0" size="0.008" rgba="0 1 0 1"/>
+      <geom name="base_frame_z" class="frame_axis" fromto="0 0 0  0 0 0.16" size="0.008" rgba="0 0 1 1"/>
       <body name="link1" pos="0 0 0.2435">
         <inertial pos="-0.00036 0.04195 -0.0025" quat="0.608059 0.792349 -0.0438707 0.0228718" mass="1.411"
           diaginertia="0.00145276 0.00135275 0.000853355"/>
@@ -89,6 +97,11 @@
                   <geom class="visual" mesh="link6" material="silver"/>
                   <geom name="link6_c" class="collision" mesh="link6_c"/>
                   <site name="attachment_site"/>
+                  <!-- Display end-effector frame -->
+                  <geom name="ee_frame_o" class="frame_axis" type="sphere" size="0.006" rgba="0.9 0.9 0.9 1"/>
+                  <geom name="ee_frame_x" class="frame_axis" fromto="0 0 0  0.05 0 0" size="0.004" rgba="1 0 0 1"/>
+                  <geom name="ee_frame_y" class="frame_axis" fromto="0 0 0  0 0.05 0" size="0.004" rgba="0 1 0 1"/>
+                  <geom name="ee_frame_z" class="frame_axis" fromto="0 0 0  0 0 0.05" size="0.004" rgba="0 0 1 1"/>
                 </body>
               </body>
             </body>
