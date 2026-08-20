@@ -108,6 +108,11 @@ class Lcm2MujocoBridge:
         self.vis_se = False
         self.vis_traj = False
 
+        # Upper-level display overlays (driven by a robot-specific display topic).
+        # Bridges that support them flip these on; main.py skips the overlay when False.
+        self.vis_ghost = False
+        self.vis_fk = False
+
     def _init_delay_buffer(self, source, delay_steps):
         length = max(delay_steps + 1, 1)
         return deque([copy.deepcopy(source) for _ in range(length)], maxlen=length)

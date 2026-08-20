@@ -41,6 +41,7 @@ class Config:
 
         self.robot_state_topic = self.robot_type + "_state"
         self.robot_cmd_topic = self.robot_type + "_control"
+        self.robot_display_topic = self.robot_type + "_display"
 
         self.robot_xml_path = str(self.asset_root / self.robot_path_dict[self.robot_type])
 

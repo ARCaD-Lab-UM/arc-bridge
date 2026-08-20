@@ -1,0 +1,19 @@
+package lcm_msgs;
+
+struct ufactory_lite6_display_t
+{
+    int64_t  timestamp;
+
+    const int32_t num_joint=6;
+
+    // Ghost arm: translucent preview of an IK solution, drawn as a second copy
+    // of the robot at these joint angles.
+    boolean  show_ghost;                // false clears the ghost overlay
+    double   ghost_qj_pos[num_joint];   // rad
+
+    // FK marker: translucent box + RGB axis triad at the pose the upper-level
+    // forward kinematics reports for the end effector.
+    boolean  show_fk;                   // false clears the FK overlay
+    double   fk_pos[3];                 // m,   world frame
+    double   fk_rpy[3];                 // rad, fixed-axis roll-pitch-yaw
+}

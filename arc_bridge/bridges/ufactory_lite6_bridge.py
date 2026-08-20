@@ -2,6 +2,7 @@ import mujoco
 import numpy as np
 
 from .lcm2mujoco_bridge import Lcm2MujocoBridge
+from arc_bridge.lcm_msgs import ufactory_lite6_display_t
 from arc_bridge.utils import *
 
 
@@ -19,6 +20,28 @@ class UfactoryLite6Bridge(Lcm2MujocoBridge):
         # These are shaped by the incoming speed/mvacc limits and then fed to the computed-torque law as (q_des, qd_des, qdd_des).
         self._q_des = None                          # desired joint position (nv,)
         self._qd_des = np.zeros(self.mj_model.nv)   # desired joint velocity (nv,)
+
+        # Display overlays driven by the upper-level GUI over a third LCM channel.
+        # Only the raw values are stored here; main.py owns the rendering so the
+        # scene geometry is built on the viewer thread rather than the LCM thread.
+        self.vis_ghost_q = np.zeros(6)              # ghost arm joint angles (rad)
+        self.vis_fk_pos = np.zeros(3)               # FK marker position (m, world)
+        self.vis_fk_R = np.eye(3)                   # FK marker orientation
+        self.vis_fk_box_size = [0.025, 0.025, 0.025]
+        self.lc.subscribe(config.robot_display_topic, self.lcm_display_handler)
+
+    def lcm_display_handler(self, channel, data):
+        # Upper-level display request: ghost arm (IK preview) and FK pose marker.
+        msg = ufactory_lite6_display_t.decode(data)
+        self.vis_ghost = bool(msg.show_ghost)
+        if self.vis_ghost:
+            self.vis_ghost_q = np.array(msg.ghost_qj_pos, dtype=float)
+        self.vis_fk = bool(msg.show_fk)
+        if self.vis_fk:
+            self.vis_fk_pos = np.array(msg.fk_pos, dtype=float)
+            # rpy_to_quat/quat_to_rot use the same fixed-axis RPY convention as
+            # the upper level's get_pose_from_T, so no extra conversion is needed.
+            self.vis_fk_R = quat_to_rot(rpy_to_quat(np.array(msg.fk_rpy, dtype=float)))
 
     def parse_robot_specific_low_state(self):
         # Joint-space inertia matrix

@@ -138,20 +138,32 @@ def main():
     sim_thread = Thread(target=simulate_mujoco, daemon=True)
     sim_thread.start()
 
+    # Ghost arm: a second MjData on the same model, posed at the joint angles the
+    # upper level asks for. Only the visual meshes (group 2) are drawn, so the
+    # frame-axis geoms (group 1) and collision geoms (group 3) stay out of it.
+    ghost_data = mujoco.MjData(mj_model)
+    ghost_opt = mujoco.MjvOption()
+    ghost_opt.geomgroup[:] = 0
+    ghost_opt.geomgroup[2] = 1
+    ghost_pert = mujoco.MjvPerturb()
+
     while viewer.is_running() and bridge.is_running:
+        n_geom = 0
+        viewer.user_scn.ngeom = 0
+
         # Add geom of estimated position and velocity
         if bridge.vis_se:
-            viewer.user_scn.ngeom = 0
             mujoco.mjv_initGeom(
-                viewer.user_scn.geoms[0],
+                viewer.user_scn.geoms[n_geom],
                 type=mujoco.mjtGeom.mjGEOM_BOX,
                 size=bridge.vis_box_size,
                 pos=bridge.vis_pos_est,
                 mat=bridge.vis_R_body.flatten(),
                 rgba=[1, 0, 0, 0.3]
             )
+            n_geom += 1
             mujoco.mjv_initGeom(
-                viewer.user_scn.geoms[1],
+                viewer.user_scn.geoms[n_geom],
                 type=mujoco.mjtGeom.mjGEOM_ARROW,
                 size=np.zeros(3),
                 pos=np.zeros(3),
@@ -159,12 +171,56 @@ def main():
                 rgba=[0, 0, 1, 1]
             )
             mujoco.mjv_connector( # scn, type, width, from, to
-                viewer.user_scn.geoms[1],
-                mujoco.mjtGeom.mjGEOM_ARROW, 
+                viewer.user_scn.geoms[n_geom],
+                mujoco.mjtGeom.mjGEOM_ARROW,
                 0.02,
-                bridge.vis_pos_est, 
+                bridge.vis_pos_est,
                 bridge.vis_pos_est + bridge.vis_vel_est*0.5)
-            viewer.user_scn.ngeom = 2
+            n_geom += 1
+
+        # Add geom of the end-effector pose reported by the upper-level FK:
+        # a translucent box plus an RGB axis triad, so a mismatch against the
+        # real flange is visible at a glance.
+        if bridge.vis_fk:
+            mujoco.mjv_initGeom(
+                viewer.user_scn.geoms[n_geom],
+                type=mujoco.mjtGeom.mjGEOM_BOX,
+                size=bridge.vis_fk_box_size,
+                pos=bridge.vis_fk_pos,
+                mat=bridge.vis_fk_R.flatten(),
+                rgba=[1, 0, 0, 0.3]
+            )
+            n_geom += 1
+            for axis in range(3):
+                mujoco.mjv_initGeom(
+                    viewer.user_scn.geoms[n_geom],
+                    type=mujoco.mjtGeom.mjGEOM_ARROW,
+                    size=np.zeros(3),
+                    pos=np.zeros(3),
+                    mat=np.zeros(9),
+                    rgba=[float(axis == 0), float(axis == 1), float(axis == 2), 1]
+                )
+                mujoco.mjv_connector(
+                    viewer.user_scn.geoms[n_geom],
+                    mujoco.mjtGeom.mjGEOM_ARROW,
+                    0.006,
+                    bridge.vis_fk_pos,
+                    bridge.vis_fk_pos + bridge.vis_fk_R[:, axis]*0.06)
+                n_geom += 1
+
+        viewer.user_scn.ngeom = n_geom
+
+        # Ghost arm. mjv_addGeoms appends starting at scn.ngeom and advances it,
+        # so this has to run after ngeom is set above.
+        if bridge.vis_ghost:
+            ghost_data.qpos[:6] = bridge.vis_ghost_q
+            mujoco.mj_kinematics(mj_model, ghost_data)
+            ghost_start = viewer.user_scn.ngeom
+            mujoco.mjv_addGeoms(
+                mj_model, ghost_data, ghost_opt, ghost_pert,
+                mujoco.mjtCatBit.mjCAT_DYNAMIC, viewer.user_scn)
+            for i in range(ghost_start, viewer.user_scn.ngeom):
+                viewer.user_scn.geoms[i].rgba[:] = [0.2, 0.6, 1.0, 0.35]
 
         with viewer.lock():
             # Turn state_only on to make sync() really fast.
