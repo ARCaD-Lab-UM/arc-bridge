@@ -7,32 +7,6 @@ set LCM_PKG_DIR=lcm_msgs
 set JAVA_ARCHIVE_NAME=lcm_msgs.jar
 set LCM_PKG_PATH=%LCM_GEN_DES_PATH%\%LCM_PKG_DIR%
 
-@REM Fix LCM Windows compatibility issue (https://github.com/lcm-proj/lcm/pull/581)
-echo Applying LCM Windows compatibility fix...
-for /f "tokens=2 delims= " %%i in ('pip show lcm ^| findstr "Location:"') do set LCM_LOCATION=%%i
-set LCM_INIT_FILE=%LCM_LOCATION%\lcm\__init__.py
-
-if exist "%LCM_INIT_FILE%" (
-    @REM Check if the fix is already applied
-    findstr /C:"subprocess.call([os.path.join" "%LCM_INIT_FILE%" >nul
-    if !errorlevel! equ 0 (
-        echo Backing up original __init__.py...
-        copy "%LCM_INIT_FILE%" "%LCM_INIT_FILE%.backup"
-        
-        echo Applying Windows compatibility patch...
-        python scripts/apply_lcm_patch.py "%LCM_INIT_FILE%"
-        if !errorlevel! neq 0 (
-            echo Error: Failed to apply LCM patch
-            exit /b 1
-        )
-    ) else (
-        echo LCM Windows compatibility fix already applied.
-    )
-) else (
-    echo Error: LCM __init__.py not found at %LCM_INIT_FILE%
-    exit /b 1
-)
-
 echo Generating LCM types...
 
 @REM Generate Python types
