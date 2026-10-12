@@ -1,7 +1,8 @@
-numpy==1.26.4
-scipy==1.13.1
-pinocchio==3.7.0
+numpy==2.2.6
+scipy==1.15.3
+pinocchio==3.8.0
+websocket-client==1.8.0
 inputs==0.5
-mujoco==3.3.4
-lcm==1.5.1
-casadi==3.7.0
+mujoco==3.3.7
+lcm==1.5.3
+casadi==3.7.2
