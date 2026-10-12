@@ -17,3 +17,5 @@ from .lowpass_filter import *
 from .interpolation_filter import *
 from .daemon import *
 from .print_throttle import *
+from .moving_window_filter import MovingWindowFilter
+from .online_average import OnlineAverage

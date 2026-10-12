@@ -2,7 +2,7 @@ import mujoco
 import numpy as np
 import pinocchio as pin
 
-from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator, MovingWindowFilter
+from arc_bridge.state_estimators import FloatingBaseLinearStateEstimator
 from .lcm2mujoco_bridge import Lcm2MujocoBridge
 from arc_bridge.lcm_msgs import tron1_linefoot_state_t, tron1_linefoot_control_t
 from arc_bridge.utils import *
